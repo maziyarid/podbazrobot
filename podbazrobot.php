@@ -298,7 +298,10 @@ class PodBazRobot {
         
         // Get logs
         $logs = $wpdb->get_results(
-            "SELECT * FROM $table_name ORDER BY created_at DESC LIMIT 100"
+            $wpdb->prepare(
+                "SELECT * FROM $table_name ORDER BY created_at DESC LIMIT %d",
+                100
+            )
         );
         ?>
         <div class="wrap">

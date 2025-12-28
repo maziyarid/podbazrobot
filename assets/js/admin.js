@@ -15,10 +15,10 @@
      */
     function initPodBazRobot() {
         // Handle settings form validation
-        $('#podbazrobot-settings-form').on('submit', function(e) {
+        $('form[action="options.php"]').on('submit', function(e) {
             var interval = $('input[name="podbazrobot_settings[interval]"]').val();
             
-            if (interval < 1 || interval > 1440) {
+            if (interval && (interval < 1 || interval > 1440)) {
                 e.preventDefault();
                 alert('Please enter a valid interval between 1 and 1440 minutes.');
                 return false;
