@@ -1,0 +1,154 @@
+/**
+ * Podbaz Robot Admin Styles
+ * RTL Support for Persian Interface
+ */
+ /* ============================================ Base Styles ============================================ */
+.pbr-wrap { max-width: 1200px; margin: 20px auto; font-family: Tahoma, Arial, sans-serif; }
+.pbr-wrap * { box-sizing: border-box; }
+.pbr-title { font-size: 28px; font-weight: bold; color: #1d2327; margin-bottom: 5px; }
+.pbr-subtitle { color: #646970; font-size: 14px; margin-bottom: 25px; }
+/* ============================================ Container & Layout ============================================ */
+.pbr-container { display: flex; gap: 25px; align-items: flex-start; }
+.pbr-main-form { flex: 1; background: #fff; padding: 25px; border: 1px solid #c3c4c7; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+.pbr-sidebar { width: 300px; flex-shrink: 0; }
+/* ============================================ Form Sections ============================================ */
+.pbr-form-section { margin-bottom: 30px; padding-bottom: 25px; border-bottom: 1px solid #eee; }
+.pbr-form-section:last-of-type { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+.pbr-form-section h3 { font-size: 16px; color: #1d2327; margin: 0 0 20px 0; padding-bottom: 10px; border-bottom: 2px solid #9C27B0; }
+/* ============================================ Form Rows ============================================ */
+.pbr-form-row { margin-bottom: 20px; }
+.pbr-form-row:last-child { margin-bottom: 0; }
+.pbr-form-row label { display: block; font-weight: 600; margin-bottom: 8px; color: #1d2327; }
+.pbr-form-row input[type="text"], .pbr-form-row input[type="password"], .pbr-form-row textarea, .pbr-form-row select { width: 100%; padding: 10px 12px; border: 1px solid #8c8f94; border-radius: 4px; font-size: 14px; direction: rtl; font-family: Tahoma, Arial, sans-serif; }
+.pbr-form-row textarea { min-height: 120px; resize: vertical; }
+.pbr-form-row input:focus, .pbr-form-row textarea:focus, .pbr-form-row select:focus { border-color: #9C27B0; box-shadow: 0 0 0 1px #9C27B0; outline: none; }
+.pbr-help { display: block; font-size: 12px; color: #646970; margin-top: 6px; }
+.required { color: #d63638; }
+/* ============================================ Radio Groups ============================================ */
+.pbr-radio-group { display: flex; flex-wrap: wrap; gap: 20px; }
+.pbr-radio-group label { display: flex; align-items: center; gap: 8px; font-weight: normal; cursor: pointer; padding: 10px 15px; border: 1px solid #ddd; border-radius: 6px; transition: all 0.2s; }
+.pbr-radio-group label:hover { border-color: #9C27B0; background: #F3E5F5; }
+.pbr-radio-group input[type="radio"]:checked + span { color: #9C27B0; font-weight: 600; }
+/* ============================================ Buttons ============================================ */
+.pbr-form-actions { margin-top: 25px; padding-top: 20px; border-top: 1px solid #eee; text-align: center; }
+.button-hero { padding: 12px 30px !important; font-size: 16px !important; height: auto !important; background: #9C27B0 !important; border-color: #7B1FA2 !important; }
+.button-hero:hover { background: #7B1FA2 !important; }
+.button-hero .dashicons { font-size: 20px; margin-left: 8px; vertical-align: middle; }
+/* ============================================ Sidebar Boxes ============================================ */
+.pbr-info-box, .pbr-api-status, .pbr-color-palette { background: #fff; padding: 20px; border: 1px solid #c3c4c7; border-radius: 8px; margin-bottom: 20px; }
+.pbr-info-box h4, .pbr-api-status h4, .pbr-color-palette h4 { margin: 0 0 15px 0; font-size: 14px; color: #1d2327; }
+.pbr-info-box ul { margin: 0; padding: 0; list-style: none; }
+.pbr-info-box li { padding: 6px 0; font-size: 13px; color: #50575e; }
+/* ============================================ Color Palette ============================================ */
+.pbr-colors { display: flex; flex-wrap: wrap; gap: 8px; }
+.pbr-colors span { width: 25px; height: 25px; border-radius: 4px; cursor: pointer; }
+/* ============================================ Modals ============================================ */
+.pbr-modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); z-index: 100000; display: flex; align-items: center; justify-content: center; }
+.pbr-modal-content { background: #fff; padding: 30px; border-radius: 12px; max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto; position: relative; direction: rtl; }
+.pbr-preview-modal-content { max-width: 900px; }
+.pbr-modal-close { position: absolute; top: 15px; left: 15px; background: none; border: none; font-size: 24px; cursor: pointer; color: #646970; padding: 0; line-height: 1; }
+.pbr-modal-close:hover { color: #d63638; }
+/* ============================================ Progress Steps ============================================ */
+.pbr-progress-steps { margin: 25px 0; }
+.pbr-step { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid #eee; }
+.pbr-step:last-child { border-bottom: none; }
+.pbr-step-icon { font-size: 20px; width: 30px; text-align: center; }
+.pbr-step-text { font-size: 14px; color: #1d2327; }
+/* ============================================ Progress Bar ============================================ */
+.pbr-progress-bar { height: 8px; background: #dcdcde; border-radius: 4px; overflow: hidden; margin: 20px 0; }
+.pbr-progress-fill { height: 100%; background: linear-gradient(90deg, #9C27B0, #673AB7); border-radius: 4px; transition: width 0.5s ease; width: 0; }
+.pbr-progress-message { text-align: center; color: #646970; font-size: 13px; }
+/* ============================================ Results ============================================ */
+.pbr-result-success { text-align: center; }
+.pbr-result-success h2 { color: #00a32a; margin-bottom: 20px; }
+.pbr-result-details { background: #f6f7f7; padding: 15px; border-radius: 8px; margin: 20px 0; text-align: right; }
+.pbr-result-details p { margin: 8px 0; }
+.pbr-result-actions { display: flex; gap: 10px; justify-content: center; margin-top: 20px; flex-wrap: wrap; }
+/* ============================================ HTML Preview ============================================ */
+.pbr-preview-frame { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 20px; margin-top: 15px; max-height: 500px; overflow-y: auto; }
+/* ============================================ API Status ============================================ */
+.pbr-api-status .pbr-success { color: #00a32a; }
+.pbr-api-status .pbr-error { color: #d63638; }
+.pbr-api-ok { color: #00a32a; margin: 5px 0; }
+.pbr-api-error { color: #d63638; margin: 5px 0; }
+/* ============================================ Notices ============================================ */
+.pbr-notice { margin: 15px 0 !important; }
+/* ============================================ Prompts Page ============================================ */
+.pbr-prompts-container { background: #fff; padding: 25px; border: 1px solid #c3c4c7; border-radius: 8px; }
+.pbr-prompts-tabs { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid #eee; padding-bottom: 15px; }
+.pbr-tab-btn { background: #f0f0f1; border: 1px solid #c3c4c7; padding: 10px 20px; cursor: pointer; border-radius: 6px; font-size: 14px; transition: all 0.2s; }
+.pbr-tab-btn:hover { background: #F3E5F5; border-color: #9C27B0; }
+.pbr-tab-btn.active { background: #9C27B0; color: #fff; border-color: #7B1FA2; }
+.pbr-prompt-tab { display: none; }
+.pbr-prompt-tab.active { display: block; }
+.pbr-prompt-header { margin-bottom: 15px; }
+.pbr-prompt-header h3 { margin: 0 0 5px 0; }
+.pbr-prompt-header p { margin: 0; color: #646970; font-size: 13px; }
+.pbr-prompt-editor { width: 100%; min-height: 400px; font-family: Consolas, Monaco, monospace; font-size: 13px; line-height: 1.6; }
+.pbr-prompt-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 15px; }
+.pbr-char-count { color: #646970; font-size: 12px; }
+/* ============================================ Settings Page ============================================ */
+.pbr-settings-container { max-width: 800px; }
+.pbr-settings-section { background: #fff; padding: 25px; border: 1px solid #c3c4c7; border-radius: 8px; margin-bottom: 20px; }
+.pbr-settings-section h2 { margin: 0 0 20px 0; padding-bottom: 10px; border-bottom: 2px solid #9C27B0; font-size: 18px; }
+.pbr-input-group { display: flex; gap: 10px; }
+.pbr-input-group input { flex: 1; }
+.pbr-input-group .button { flex-shrink: 0; }
+/* ============================================ Logs Page ============================================ */
+.pbr-stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-bottom: 25px; }
+.pbr-stat-card { background: #fff; border: 1px solid #c3c4c7; border-radius: 8px; padding: 20px; display: flex; align-items: center; gap: 15px; }
+.pbr-stat-icon { font-size: 28px; }
+.pbr-stat-content { display: flex; flex-direction: column; }
+.pbr-stat-number { font-size: 24px; font-weight: bold; color: #1d2327; }
+.pbr-stat-label { font-size: 12px; color: #646970; }
+.pbr-stat-success { border-color: #00a32a; }
+.pbr-stat-success .pbr-stat-number { color: #00a32a; }
+.pbr-stat-failed { border-color: #d63638; }
+.pbr-stat-failed .pbr-stat-number { color: #d63638; }
+.pbr-logs-container { background: #fff; border: 1px solid #c3c4c7; border-radius: 8px; }
+.pbr-logs-header { display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; border-bottom: 1px solid #eee; }
+.pbr-logs-header h2 { margin: 0; font-size: 16px; }
+.pbr-logs-actions { display: flex; gap: 10px; }
+.pbr-status-badge { display: inline-block; padding: 4px 10px; border-radius: 4px; font-size: 12px; }
+.pbr-status-success { background: #d4edda; color: #155724; }
+.pbr-status-failed { background: #f8d7da; color: #721c24; }
+.pbr-pagination { padding: 15px 20px; text-align: center; }
+.pbr-pagination .page-numbers { display: inline-block; padding: 5px 10px; margin: 0 3px; border: 1px solid #c3c4c7; border-radius: 4px; text-decoration: none; }
+.pbr-pagination .page-numbers.current { background: #9C27B0; color: #fff; border-color: #7B1FA2; }
+/* ============================================ Update Page ============================================ */
+.pbr-current-content { margin-top: 25px; padding-top: 20px; border-top: 1px solid #eee; }
+.pbr-current-content h4 { margin: 0 0 15px 0; }
+/* ============================================ Input Group Toggle ============================================ */
+.pbr-testing { color: #646970; }
+/* ============================================ Responsive ============================================ */
+@media (max-width: 782px) {
+    .pbr-container {
+        flex-direction: column;
+    }
+    
+    .pbr-sidebar {
+        width: 100%;
+    }
+    
+    .pbr-radio-group {
+        flex-direction: column;
+    }
+    
+    .pbr-prompts-tabs {
+        flex-wrap: wrap;
+    }
+    
+    .pbr-stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .pbr-logs-header {
+        flex-direction: column;
+        gap: 15px;
+        align-items: flex-start;
+    }
+    
+    .pbr-input-group {
+        flex-wrap: wrap;
+    }
+}
