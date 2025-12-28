@@ -115,7 +115,12 @@ class PodBazRobot {
         $table_name = $wpdb->prefix . 'podbazrobot_logs';
         $charset_collate = $wpdb->get_charset_collate();
         
-        $sql = "CREATE TABLE IF NOT EXISTS $table_name (
+        // Validate table name matches expected pattern for safety
+        if ( ! preg_match( '/^[a-zA-Z0-9_]+$/', $table_name ) ) {
+            return;
+        }
+        
+        $sql = "CREATE TABLE IF NOT EXISTS `{$table_name}` (
             id bigint(20) NOT NULL AUTO_INCREMENT,
             action varchar(255) NOT NULL,
             message text NOT NULL,

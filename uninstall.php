@@ -22,7 +22,10 @@ delete_transient( 'podbazrobot_cache' );
 // Drop custom table
 global $wpdb;
 $table_name = $wpdb->prefix . 'podbazrobot_logs';
-$wpdb->query( "DROP TABLE IF EXISTS $table_name" );
+// Validate table name matches expected pattern for safety
+if ( preg_match( '/^[a-zA-Z0-9_]+$/', $table_name ) ) {
+    $wpdb->query( "DROP TABLE IF EXISTS `{$table_name}`" );
+}
 
 // Clear any scheduled hooks
 wp_clear_scheduled_hook( 'podbazrobot_cron_event' );
