@@ -13,6 +13,9 @@ if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
     exit;
 }
 
+// Define table suffix constant (same as in main plugin file)
+define( 'PODBAZROBOT_TABLE_SUFFIX', 'podbazrobot_logs' );
+
 // Delete plugin options
 delete_option( 'podbazrobot_settings' );
 
@@ -22,10 +25,10 @@ delete_transient( 'podbazrobot_cache' );
 // Drop custom table
 global $wpdb;
 // Use constant for table suffix to ensure consistency
-$table_suffix = 'podbazrobot_logs';
-$table_name = $wpdb->prefix . $table_suffix;
-// Validate table name matches expected pattern for safety
-if ( preg_match( '/^[a-zA-Z0-9_]+$/', $table_name ) ) {
+$table_name = $wpdb->prefix . PODBAZROBOT_TABLE_SUFFIX;
+// Validate table name - allow alphanumeric, underscore, and hyphen
+// WordPress table prefixes can contain these characters
+if ( preg_match( '/^[a-zA-Z0-9_-]+$/', $table_name ) && strlen( $table_name ) <= 64 ) {
     $wpdb->query( "DROP TABLE IF EXISTS `{$table_name}`" );
 }
 

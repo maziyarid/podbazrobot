@@ -85,8 +85,14 @@ class PodBazRobot {
         // Build table name from known constant
         $table_name = $wpdb->prefix . PODBAZROBOT_TABLE_SUFFIX;
         
-        // Validate the complete table name matches expected pattern
-        if ( ! preg_match( '/^[a-zA-Z0-9_]+$/', $table_name ) ) {
+        // Validate the complete table name - allow alphanumeric, underscore, and hyphen
+        // WordPress table prefixes can contain these characters
+        if ( ! preg_match( '/^[a-zA-Z0-9_-]+$/', $table_name ) ) {
+            return false;
+        }
+        
+        // Additional safety: ensure it's not too long (MySQL table name limit is 64 chars)
+        if ( strlen( $table_name ) > 64 ) {
             return false;
         }
         
