@@ -301,13 +301,18 @@ class PodBazRobot {
         global $wpdb;
         $table_name = $wpdb->prefix . 'podbazrobot_logs';
         
-        // Get logs
-        $logs = $wpdb->get_results(
-            $wpdb->prepare(
-                "SELECT * FROM $table_name ORDER BY created_at DESC LIMIT %d",
-                100
-            )
-        );
+        // Validate table name matches expected pattern for safety
+        if ( ! preg_match( '/^[a-zA-Z0-9_]+$/', $table_name ) ) {
+            $logs = array();
+        } else {
+            // Get logs
+            $logs = $wpdb->get_results(
+                $wpdb->prepare(
+                    "SELECT * FROM `{$table_name}` ORDER BY created_at DESC LIMIT %d",
+                    100
+                )
+            );
+        }
         ?>
         <div class="wrap">
             <h1><?php esc_html_e( 'PodBaz Robot Logs', 'podbazrobot' ); ?></h1>

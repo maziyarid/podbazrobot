@@ -100,7 +100,7 @@ See [CHANGELOG.md](CHANGELOG.md) for a detailed version history.
 
 ## License
 
-This plugin is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This plugin is licensed under the GPL v2 or later - see the [LICENSE](LICENSE) file for details.
 
 ## Author
 
