@@ -91,6 +91,13 @@ register_activation_hook(__FILE__, function() {
         }
     }
     
+    // Migrate invalid model names
+    $current_model = get_option('pbr_claude_model');
+    $invalid_models = ['blackboxai', 'blackboxai-pro', 'claude-sonnet-4-20250514', 'claude-3-5-sonnet-20241022'];
+    if (in_array($current_model, $invalid_models)) {
+        update_option('pbr_claude_model', 'gpt-4o');
+    }
+    
     PBR_Prompts::init_default_prompts();
     
     // Create logs table
@@ -114,5 +121,12 @@ register_activation_hook(__FILE__, function() {
 
 // Initialize Plugin
 add_action('plugins_loaded', function() {
+    // Auto-migrate invalid model names on plugin load
+    $current_model = get_option('pbr_claude_model');
+    $invalid_models = ['blackboxai', 'blackboxai-pro', 'claude-sonnet-4-20250514', 'claude-3-5-sonnet-20241022'];
+    if ($current_model && in_array($current_model, $invalid_models)) {
+        update_option('pbr_claude_model', 'gpt-4o');
+    }
+    
     Podbaz_Robot::get_instance();
 }, 10);

@@ -4,7 +4,7 @@ if (!defined('ABSPATH')) exit;
 $settings = [
     'blackbox_api_key' => get_option('pbr_blackbox_api_key', ''),
     'tavily_api_key' => get_option('pbr_tavily_api_key', ''),
-    'claude_model' => get_option('pbr_claude_model', 'claude-sonnet-4-20250514'),
+    'claude_model' => get_option('pbr_claude_model', 'gpt-4o'),
     'auto_publish' => get_option('pbr_auto_publish', 'draft'),
     'enable_logging' => get_option('pbr_enable_logging', 'yes'),
 ];
