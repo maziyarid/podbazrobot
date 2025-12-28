@@ -80,7 +80,7 @@ register_activation_hook(__FILE__, function() {
     $defaults = [
         'pbr_blackbox_api_key' => '',
         'pbr_tavily_api_key' => '',
-        'pbr_claude_model' => 'blackboxai',
+        'pbr_claude_model' => 'gpt-4o',
         'pbr_auto_publish' => 'draft',
         'pbr_enable_logging' => 'yes',
     ];

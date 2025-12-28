@@ -62,23 +62,26 @@ $settings = [
                 <div class="pbr-form-row">
                     <label for="claude_model">مدل هوش مصنوعی</label>
                     <select id="claude_model" name="claude_model">
-                        <option value="blackboxai" <?php selected($settings['claude_model'], 'blackboxai'); ?>>
-                            Blackbox AI (پیشنهادی)
-                        </option>
-                        <option value="blackboxai-pro" <?php selected($settings['claude_model'], 'blackboxai-pro'); ?>>
-                            Blackbox AI Pro
-                        </option>
                         <option value="gpt-4o" <?php selected($settings['claude_model'], 'gpt-4o'); ?>>
-                            GPT-4o
+                            GPT-4o (پیشنهادی)
                         </option>
-                        <option value="gpt-4o-mini" <?php selected($settings['claude_model'], 'gpt-4o-mini'); ?>>
-                            GPT-4o Mini
+                        <option value="gpt-4-turbo" <?php selected($settings['claude_model'], 'gpt-4-turbo'); ?>>
+                            GPT-4 Turbo
                         </option>
-                        <option value="claude-sonnet-3.5" <?php selected($settings['claude_model'], 'claude-sonnet-3.5'); ?>>
-                            Claude Sonnet 3.5
+                        <option value="gpt-4" <?php selected($settings['claude_model'], 'gpt-4'); ?>>
+                            GPT-4
                         </option>
-                        <option value="gemini-pro" <?php selected($settings['claude_model'], 'gemini-pro'); ?>>
-                            Gemini Pro
+                        <option value="claude-3-opus" <?php selected($settings['claude_model'], 'claude-3-opus'); ?>>
+                            Claude 3 Opus
+                        </option>
+                        <option value="claude-3-sonnet" <?php selected($settings['claude_model'], 'claude-3-sonnet'); ?>>
+                            Claude 3 Sonnet
+                        </option>
+                        <option value="gemini-1.5-pro" <?php selected($settings['claude_model'], 'gemini-1.5-pro'); ?>>
+                            Gemini 1.5 Pro
+                        </option>
+                        <option value="gpt-3.5-turbo" <?php selected($settings['claude_model'], 'gpt-3.5-turbo'); ?>>
+                            GPT-3.5 Turbo (اقتصادی)
                         </option>
                     </select>
                     <span class="pbr-help">

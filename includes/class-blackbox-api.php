@@ -13,7 +13,7 @@ class PBR_Blackbox_API {
 
     public function __construct() {
         $this->api_key = get_option('pbr_blackbox_api_key', '');
-        $this->model = get_option('pbr_claude_model', 'blackboxai');
+        $this->model = get_option('pbr_claude_model', 'gpt-4o');
     }
 
     /**
@@ -150,7 +150,7 @@ class PBR_Blackbox_API {
                 ],
                 'body' => json_encode([
                     'messages' => [
-                        ['role' => 'user', 'content' => 'بگو: اتصال برقرار شد']
+                        ['role' => 'user', 'content' => 'Say: Connection successful']
                     ],
                     'model' => $this->model,
                     'max_tokens' => 50
@@ -165,6 +165,7 @@ class PBR_Blackbox_API {
             }
             
             $code = wp_remote_retrieve_response_code($response);
+            $body = json_decode(wp_remote_retrieve_body($response), true);
             
             if ($code === 200) {
                 return [
@@ -173,9 +174,19 @@ class PBR_Blackbox_API {
                 ];
             }
             
+            // Return detailed error message from API
+            $error_msg = "خطای HTTP {$code}";
+            if (isset($body['error'])) {
+                if (is_string($body['error'])) {
+                    $error_msg .= ': ' . $body['error'];
+                } elseif (isset($body['error']['message'])) {
+                    $error_msg .= ': ' . $body['error']['message'];
+                }
+            }
+            
             return [
                 'success' => false,
-                'message' => "خطای HTTP {$code}"
+                'message' => $error_msg
             ];
             
         } catch (Exception $e) {
