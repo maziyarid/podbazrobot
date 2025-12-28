@@ -1,0 +1,50 @@
+/**
+ * PodBaz Robot Admin Styles
+ */
+
+.wrap h1 {
+    margin-bottom: 20px;
+}
+
+.podbazrobot-settings {
+    max-width: 800px;
+}
+
+.podbazrobot-settings .form-table th {
+    width: 200px;
+    padding: 20px 10px 20px 0;
+}
+
+.podbazrobot-settings .form-table td {
+    padding: 15px 10px;
+}
+
+.podbazrobot-settings .description {
+    color: #666;
+    font-style: italic;
+    margin-top: 5px;
+}
+
+.podbazrobot-logs-table {
+    margin-top: 20px;
+}
+
+.podbazrobot-logs-table td {
+    padding: 10px;
+}
+
+.podbazrobot-status-indicator {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    margin-right: 5px;
+}
+
+.podbazrobot-status-indicator.active {
+    background-color: #46b450;
+}
+
+.podbazrobot-status-indicator.inactive {
+    background-color: #dc3232;
+}
