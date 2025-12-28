@@ -74,6 +74,9 @@ final class Podbaz_Robot {
 
 // Activation Hook
 register_activation_hook(__FILE__, function() {
+    // Load prompts class for initialization
+    require_once plugin_dir_path(__FILE__) . 'includes/class-prompts.php';
+    
     $defaults = [
         'pbr_blackbox_api_key' => '',
         'pbr_tavily_api_key' => '',
