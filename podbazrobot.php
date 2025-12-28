@@ -24,6 +24,7 @@ define( 'PODBAZROBOT_VERSION', '1.0.0' );
 define( 'PODBAZROBOT_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'PODBAZROBOT_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define( 'PODBAZROBOT_PLUGIN_FILE', __FILE__ );
+define( 'PODBAZROBOT_TABLE_SUFFIX', 'podbazrobot_logs' );
 
 /**
  * Main PodBazRobot Class
@@ -74,6 +75,25 @@ class PodBazRobot {
     }
     
     /**
+     * Get table name with validation
+     *
+     * @return string|false Table name or false if invalid
+     */
+    private static function get_table_name() {
+        global $wpdb;
+        
+        // Build table name from known constant
+        $table_name = $wpdb->prefix . PODBAZROBOT_TABLE_SUFFIX;
+        
+        // Validate the complete table name matches expected pattern
+        if ( ! preg_match( '/^[a-zA-Z0-9_]+$/', $table_name ) ) {
+            return false;
+        }
+        
+        return $table_name;
+    }
+    
+    /**
      * Plugin activation
      */
     public function activate() {
@@ -112,13 +132,12 @@ class PodBazRobot {
     private function create_database_table() {
         global $wpdb;
         
-        $table_name = $wpdb->prefix . 'podbazrobot_logs';
-        $charset_collate = $wpdb->get_charset_collate();
-        
-        // Validate table name matches expected pattern for safety
-        if ( ! preg_match( '/^[a-zA-Z0-9_]+$/', $table_name ) ) {
+        $table_name = self::get_table_name();
+        if ( false === $table_name ) {
             return;
         }
+        
+        $charset_collate = $wpdb->get_charset_collate();
         
         $sql = "CREATE TABLE IF NOT EXISTS `{$table_name}` (
             id bigint(20) NOT NULL AUTO_INCREMENT,
@@ -220,7 +239,10 @@ class PodBazRobot {
         
         $sanitized['enabled'] = isset( $input['enabled'] ) ? (bool) $input['enabled'] : false;
         $sanitized['api_key'] = isset( $input['api_key'] ) ? sanitize_text_field( $input['api_key'] ) : '';
-        $sanitized['interval'] = isset( $input['interval'] ) ? absint( $input['interval'] ) : 60;
+        
+        // Validate interval is between 1 and 1440 minutes
+        $interval = isset( $input['interval'] ) ? absint( $input['interval'] ) : 60;
+        $sanitized['interval'] = max( 1, min( 1440, $interval ) );
         
         return $sanitized;
     }
@@ -299,10 +321,9 @@ class PodBazRobot {
         }
         
         global $wpdb;
-        $table_name = $wpdb->prefix . 'podbazrobot_logs';
+        $table_name = self::get_table_name();
         
-        // Validate table name matches expected pattern for safety
-        if ( ! preg_match( '/^[a-zA-Z0-9_]+$/', $table_name ) ) {
+        if ( false === $table_name ) {
             $logs = array();
         } else {
             // Get logs
@@ -394,7 +415,10 @@ class PodBazRobot {
     public static function log( $action, $message ) {
         global $wpdb;
         
-        $table_name = $wpdb->prefix . 'podbazrobot_logs';
+        $table_name = self::get_table_name();
+        if ( false === $table_name ) {
+            return;
+        }
         
         $wpdb->insert(
             $table_name,

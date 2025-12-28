@@ -21,7 +21,9 @@ delete_transient( 'podbazrobot_cache' );
 
 // Drop custom table
 global $wpdb;
-$table_name = $wpdb->prefix . 'podbazrobot_logs';
+// Use constant for table suffix to ensure consistency
+$table_suffix = 'podbazrobot_logs';
+$table_name = $wpdb->prefix . $table_suffix;
 // Validate table name matches expected pattern for safety
 if ( preg_match( '/^[a-zA-Z0-9_]+$/', $table_name ) ) {
     $wpdb->query( "DROP TABLE IF EXISTS `{$table_name}`" );
