@@ -8,13 +8,13 @@ class PBR_Blackbox_API {
     
     private $api_key;
     private $model;
-    private $base_url = 'https://api.blackbox.ai/api/chat';
+    private $base_url = 'https://api.blackbox.ai/chat/completions';
     private $timeout = 300;
 
     public function __construct() {
         $this->api_key = get_option('pbr_blackbox_api_key', '');
-        $this->model = get_option('pbr_claude_model', 'claude-sonnet-4-20250514');
-        }
+        $this->model = get_option('pbr_claude_model', 'blackboxai');
+    }
 
     /**
      * Generate content using Blackbox API

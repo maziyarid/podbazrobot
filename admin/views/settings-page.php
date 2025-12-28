@@ -62,19 +62,28 @@ $settings = [
                 <div class="pbr-form-row">
                     <label for="claude_model">مدل هوش مصنوعی</label>
                     <select id="claude_model" name="claude_model">
-                        <option value="claude-sonnet-4-20250514" <?php selected($settings['claude_model'], 'claude-sonnet-4-20250514'); ?>>
-                            Claude Sonnet 4 (پیشنهادی)
+                        <option value="blackboxai" <?php selected($settings['claude_model'], 'blackboxai'); ?>>
+                            Blackbox AI (پیشنهادی)
                         </option>
-                        <option value="claude-3-5-sonnet-20241022" <?php selected($settings['claude_model'], 'claude-3-5-sonnet-20241022'); ?>>
-                            Claude 3.5 Sonnet
+                        <option value="blackboxai-pro" <?php selected($settings['claude_model'], 'blackboxai-pro'); ?>>
+                            Blackbox AI Pro
                         </option>
                         <option value="gpt-4o" <?php selected($settings['claude_model'], 'gpt-4o'); ?>>
                             GPT-4o
                         </option>
                         <option value="gpt-4o-mini" <?php selected($settings['claude_model'], 'gpt-4o-mini'); ?>>
-                            GPT-4o Mini (اقتصادی)
+                            GPT-4o Mini
+                        </option>
+                        <option value="claude-sonnet-3.5" <?php selected($settings['claude_model'], 'claude-sonnet-3.5'); ?>>
+                            Claude Sonnet 3.5
+                        </option>
+                        <option value="gemini-pro" <?php selected($settings['claude_model'], 'gemini-pro'); ?>>
+                            Gemini Pro
                         </option>
                     </select>
+                    <span class="pbr-help">
+                        مدل‌های در دسترس از طریق Blackbox AI
+                    </span>
                 </div>
             </div>
             
