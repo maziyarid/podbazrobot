@@ -13,7 +13,7 @@ class PBR_Blackbox_API {
 
     public function __construct() {
         $this->api_key = get_option('pbr_blackbox_api_key', '');
-        $this->model = get_option('pbr_claude_model', 'gpt-4o');
+        $this->model = get_option('pbr_claude_model', 'blackboxai/anthropic/claude-3.5-sonnet');
     }
 
     /**
