@@ -8,13 +8,13 @@ class PBR_Blackbox_API {
     
     private $api_key;
     private $model;
-    private $base_url = 'https://api.blackbox.ai/api/chat';
+    private $base_url = 'https://api.blackbox.ai/chat/completions';
     private $timeout = 300;
 
     public function __construct() {
         $this->api_key = get_option('pbr_blackbox_api_key', '');
-        $this->model = get_option('pbr_claude_model', 'claude-sonnet-4-20250514');
-        }
+        $this->model = get_option('pbr_claude_model', 'blackboxai/anthropic/claude-3.5-sonnet');
+    }
 
     /**
      * Generate content using Blackbox API
@@ -138,10 +138,62 @@ class PBR_Blackbox_API {
     }
 
     /**
+     * Get available models for the API key
+     */
+    public function get_available_models() {
+        if (empty($this->api_key)) {
+            return [];
+        }
+        
+        $response = wp_remote_get('https://api.blackbox.ai/v1/models', [
+            'timeout' => 30,
+            'headers' => [
+                'Authorization' => 'Bearer ' . $this->api_key,
+                'Content-Type' => 'application/json',
+            ]
+        ]);
+        
+        if (is_wp_error($response)) {
+            return [];
+        }
+        
+        $code = wp_remote_retrieve_response_code($response);
+        if ($code !== 200) {
+            return [];
+        }
+        
+        $body = json_decode(wp_remote_retrieve_body($response), true);
+        if (!isset($body['data']) || !is_array($body['data'])) {
+            return [];
+        }
+        
+        $models = [];
+        foreach ($body['data'] as $model) {
+            if (isset($model['id'])) {
+                $models[] = $model['id'];
+            }
+        }
+        
+        return $models;
+    }
+
+    /**
      * Test API connection
      */
     public function test_connection() {
         try {
+            // First, try to get available models
+            $available_models = $this->get_available_models();
+            
+            // Determine which model to use for testing
+            $test_model = $this->model;
+            if (!empty($available_models)) {
+                // If current model is not in available models, use the first available one
+                if (!in_array($this->model, $available_models)) {
+                    $test_model = $available_models[0];
+                }
+            }
+            
             $response = wp_remote_post($this->base_url, [
                 'timeout' => 30,
                 'headers' => [
@@ -150,9 +202,9 @@ class PBR_Blackbox_API {
                 ],
                 'body' => json_encode([
                     'messages' => [
-                        ['role' => 'user', 'content' => 'بگو: اتصال برقرار شد']
+                        ['role' => 'user', 'content' => 'Say: Connection successful']
                     ],
-                    'model' => $this->model,
+                    'model' => $test_model,
                     'max_tokens' => 50
                 ])
             ]);
@@ -165,17 +217,44 @@ class PBR_Blackbox_API {
             }
             
             $code = wp_remote_retrieve_response_code($response);
+            $body = json_decode(wp_remote_retrieve_body($response), true);
             
             if ($code === 200) {
+                $success_msg = '✅ اتصال به Blackbox API برقرار است';
+                if (!empty($available_models)) {
+                    $success_msg .= ' - ' . count($available_models) . ' مدل در دسترس';
+                }
+                if ($test_model !== $this->model) {
+                    $success_msg .= ' (استفاده از مدل: ' . $test_model . ')';
+                }
                 return [
                     'success' => true,
-                    'message' => '✅ اتصال به Blackbox API برقرار است'
+                    'message' => $success_msg,
+                    'available_models' => $available_models
                 ];
+            }
+            
+            // Return detailed error message from API
+            $error_msg = "خطای HTTP {$code}";
+            if (isset($body['error'])) {
+                if (is_string($body['error'])) {
+                    $error_msg .= ': ' . $body['error'];
+                } elseif (isset($body['error']['message'])) {
+                    $error_msg .= ': ' . $body['error']['message'];
+                }
+            }
+            
+            // Add available models info to error message
+            if (!empty($available_models)) {
+                $error_msg .= ' - مدل‌های موجود: ' . implode(', ', array_slice($available_models, 0, 5));
+                if (count($available_models) > 5) {
+                    $error_msg .= ' و ' . (count($available_models) - 5) . ' مدل دیگر';
+                }
             }
             
             return [
                 'success' => false,
-                'message' => "خطای HTTP {$code}"
+                'message' => $error_msg
             ];
             
         } catch (Exception $e) {

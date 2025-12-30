@@ -74,10 +74,13 @@ final class Podbaz_Robot {
 
 // Activation Hook
 register_activation_hook(__FILE__, function() {
+    // Load prompts class for initialization
+    require_once plugin_dir_path(__FILE__) . 'includes/class-prompts.php';
+    
     $defaults = [
         'pbr_blackbox_api_key' => '',
         'pbr_tavily_api_key' => '',
-        'pbr_claude_model' => 'claude-sonnet-4-20250514',
+        'pbr_claude_model' => 'blackboxai/anthropic/claude-3.5-sonnet',
         'pbr_auto_publish' => 'draft',
         'pbr_enable_logging' => 'yes',
     ];
@@ -86,6 +89,19 @@ register_activation_hook(__FILE__, function() {
         if (get_option($key) === false) {
             add_option($key, $value);
         }
+    }
+    
+    // Migrate invalid model names
+    $current_model = get_option('pbr_claude_model');
+    $invalid_models = [
+        'blackboxai', 'blackboxai-pro', 
+        'claude-sonnet-4-20250514', 'claude-3-5-sonnet-20241022',
+        'gpt-4o', 'gpt-4-turbo', 'gpt-4', 
+        'claude-3-opus', 'claude-3-sonnet', 'claude-3-haiku',
+        'gemini-1.5-pro', 'gpt-3.5-turbo'
+    ];
+    if (in_array($current_model, $invalid_models)) {
+        update_option('pbr_claude_model', 'blackboxai/anthropic/claude-3.5-sonnet');
     }
     
     PBR_Prompts::init_default_prompts();
@@ -111,5 +127,18 @@ register_activation_hook(__FILE__, function() {
 
 // Initialize Plugin
 add_action('plugins_loaded', function() {
+    // Auto-migrate invalid model names on plugin load
+    $current_model = get_option('pbr_claude_model');
+    $invalid_models = [
+        'blackboxai', 'blackboxai-pro', 
+        'claude-sonnet-4-20250514', 'claude-3-5-sonnet-20241022',
+        'gpt-4o', 'gpt-4-turbo', 'gpt-4', 
+        'claude-3-opus', 'claude-3-sonnet', 'claude-3-haiku',
+        'gemini-1.5-pro', 'gpt-3.5-turbo'
+    ];
+    if ($current_model && in_array($current_model, $invalid_models)) {
+        update_option('pbr_claude_model', 'blackboxai/anthropic/claude-3.5-sonnet');
+    }
+    
     Podbaz_Robot::get_instance();
 }, 10);

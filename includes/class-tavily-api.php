@@ -74,7 +74,6 @@ class PBR_Tavily_API {
      */
     private function search($query, $include_domains = []) {
         $body = [
-            'api_key' => $this->api_key,
             'query' => $query,
             'search_depth' => 'advanced',
             'include_answer' => true,
@@ -90,6 +89,7 @@ class PBR_Tavily_API {
             'timeout' => $this->timeout,
             'headers' => [
                 'Content-Type' => 'application/json',
+                'Authorization' => 'Bearer ' . $this->api_key,
             ],
             'body' => json_encode($body)
         ]);
@@ -214,9 +214,11 @@ class PBR_Tavily_API {
         try {
             $response = wp_remote_post($this->base_url, [
                 'timeout' => 30,
-                'headers' => ['Content-Type' => 'application/json'],
+                'headers' => [
+                    'Content-Type' => 'application/json',
+                    'Authorization' => 'Bearer ' . $this->api_key,
+                ],
                 'body' => json_encode([
-                    'api_key' => $this->api_key,
                     'query' => 'vape device test',
                     'max_results' => 1
                 ])
