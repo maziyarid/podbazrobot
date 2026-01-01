@@ -4,7 +4,7 @@ if (!defined('ABSPATH')) exit;
 $settings = [
     'blackbox_api_key' => get_option('pbr_blackbox_api_key', ''),
     'tavily_api_key' => get_option('pbr_tavily_api_key', ''),
-    'claude_model' => get_option('pbr_claude_model', 'claude-sonnet-4-20250514'),
+    'claude_model' => get_option('pbr_claude_model', 'blackboxai'),
     'auto_publish' => get_option('pbr_auto_publish', 'draft'),
     'enable_logging' => get_option('pbr_enable_logging', 'yes'),
 ];
@@ -62,18 +62,76 @@ $settings = [
                 <div class="pbr-form-row">
                     <label for="claude_model">مدل هوش مصنوعی</label>
                     <select id="claude_model" name="claude_model">
-                        <option value="claude-sonnet-4-20250514" <?php selected($settings['claude_model'], 'claude-sonnet-4-20250514'); ?>>
-                            Claude Sonnet 4 (پیشنهادی)
-                        </option>
-                        <option value="claude-3-5-sonnet-20241022" <?php selected($settings['claude_model'], 'claude-3-5-sonnet-20241022'); ?>>
-                            Claude 3.5 Sonnet
-                        </option>
-                        <option value="gpt-4o" <?php selected($settings['claude_model'], 'gpt-4o'); ?>>
-                            GPT-4o
-                        </option>
-                        <option value="gpt-4o-mini" <?php selected($settings['claude_model'], 'gpt-4o-mini'); ?>>
-                            GPT-4o Mini (اقتصادی)
-                        </option>
+                        <optgroup label="🆓 مدلهای رایگان (Free Models)">
+                            <option value="blackboxai" <?php selected($settings['claude_model'], 'blackboxai'); ?>>
+                                Blackbox AI (رایگان) ⭐
+                            </option>
+                            <option value="blackboxai-pro" <?php selected($settings['claude_model'], 'blackboxai-pro'); ?>>
+                                Blackbox AI Pro (رایگان)
+                            </option>
+                            <option value="gpt-4o-mini" <?php selected($settings['claude_model'], 'gpt-4o-mini'); ?>>
+                                GPT-4o Mini (رایگان)
+                            </option>
+                            <option value="deepseek-chat" <?php selected($settings['claude_model'], 'deepseek-chat'); ?>>
+                                DeepSeek Chat (رایگان) - عالی برای فارسی
+                            </option>
+                            <option value="deepseek-reasoner" <?php selected($settings['claude_model'], 'deepseek-reasoner'); ?>>
+                                DeepSeek R1 Reasoner (رایگان) - استدلال پیشرفته
+                            </option>
+                            <option value="llama-3.3-70b" <?php selected($settings['claude_model'], 'llama-3.3-70b'); ?>>
+                                Llama 3.3 70B (رایگان)
+                            </option>
+                            <option value="qwen-2.5-72b" <?php selected($settings['claude_model'], 'qwen-2.5-72b'); ?>>
+                                Qwen 2.5 72B (رایگان)
+                            </option>
+                            <option value="mistral-small" <?php selected($settings['claude_model'], 'mistral-small'); ?>>
+                                Mistral Small (رایگان)
+                            </option>
+                        </optgroup>
+                        <optgroup label="💎 Gemini Models">
+                            <option value="gemini-2.0-flash" <?php selected($settings['claude_model'], 'gemini-2.0-flash'); ?>>
+                                Gemini 2.0 Flash (سریع و هوشمند)
+                            </option>
+                            <option value="gemini-1.5-pro" <?php selected($settings['claude_model'], 'gemini-1.5-pro'); ?>>
+                                Gemini 1.5 Pro (کانتکست ۱ میلیون توکن)
+                            </option>
+                            <option value="gemini-1.5-flash" <?php selected($settings['claude_model'], 'gemini-1.5-flash'); ?>>
+                                Gemini 1.5 Flash
+                            </option>
+                        </optgroup>
+                        <optgroup label="🟣 Claude Models (Anthropic)">
+                            <option value="claude-sonnet-4-20250514" <?php selected($settings['claude_model'], 'claude-sonnet-4-20250514'); ?>>
+                                Claude Sonnet 4 (پیشنهادی - بهترین کیفیت) ⭐
+                            </option>
+                            <option value="claude-3-5-sonnet-20241022" <?php selected($settings['claude_model'], 'claude-3-5-sonnet-20241022'); ?>>
+                                Claude 3.5 Sonnet
+                            </option>
+                            <option value="claude-3-opus-20240229" <?php selected($settings['claude_model'], 'claude-3-opus-20240229'); ?>>
+                                Claude 3 Opus (بالاترین کیفیت)
+                            </option>
+                            <option value="claude-3-haiku-20240307" <?php selected($settings['claude_model'], 'claude-3-haiku-20240307'); ?>>
+                                Claude 3 Haiku (سریع و اقتصادی)
+                            </option>
+                        </optgroup>
+                        <optgroup label="🟢 GPT Models (OpenAI)">
+                            <option value="gpt-4o" <?php selected($settings['claude_model'], 'gpt-4o'); ?>>
+                                GPT-4o (خلاقانه و قوی)
+                            </option>
+                            <option value="gpt-4-turbo" <?php selected($settings['claude_model'], 'gpt-4-turbo'); ?>>
+                                GPT-4 Turbo
+                            </option>
+                            <option value="gpt-4" <?php selected($settings['claude_model'], 'gpt-4'); ?>>
+                                GPT-4
+                            </option>
+                        </optgroup>
+                        <optgroup label="🔵 سایر مدلها (Other Models)">
+                            <option value="grok-2" <?php selected($settings['claude_model'], 'grok-2'); ?>>
+                                Grok 2 (xAI)
+                            </option>
+                            <option value="command-r-plus" <?php selected($settings['claude_model'], 'command-r-plus'); ?>>
+                                Command R+ (Cohere)
+                            </option>
+                        </optgroup>
                     </select>
                 </div>
             </div>

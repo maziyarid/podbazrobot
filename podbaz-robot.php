@@ -77,7 +77,7 @@ register_activation_hook(__FILE__, function() {
     $defaults = [
         'pbr_blackbox_api_key' => '',
         'pbr_tavily_api_key' => '',
-        'pbr_claude_model' => 'claude-sonnet-4-20250514',
+        'pbr_claude_model' => 'blackboxai',
         'pbr_auto_publish' => 'draft',
         'pbr_enable_logging' => 'yes',
     ];
