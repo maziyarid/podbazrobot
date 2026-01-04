@@ -19,13 +19,20 @@ class PBR_Post_Handler {
         // Parse content
         $parsed = $this->parse_post_content($raw_content);
         
-        // Validate
+        // Validate title
         if (empty($parsed['title'])) {
             throw new Exception('عنوان پست یافت نشد.');
         }
         
+        // No longer throw exception for empty HTML - use fallback
         if (empty($parsed['html_content'])) {
-            throw new Exception('محتوای HTML یافت نشد.');
+            error_log('PBR Warning: HTML content is empty for post: ' . $parsed['title']);
+            // Generate basic fallback if we have excerpt
+            if (!empty($parsed['excerpt'])) {
+                $parsed['html_content'] = '<div style="font-family: Tahoma, Arial, sans-serif; direction: rtl;">';
+                $parsed['html_content'] .= '<p>' . esc_html($parsed['excerpt']) . '</p>';
+                $parsed['html_content'] .= '</div>';
+            }
         }
         
         // Create post

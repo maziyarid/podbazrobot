@@ -51,6 +51,7 @@ final class Podbaz_Robot {
         require_once PBR_PLUGIN_DIR . 'includes/class-custom-fields.php';
         require_once PBR_PLUGIN_DIR . 'includes/class-product-handler.php';
         require_once PBR_PLUGIN_DIR . 'includes/class-post-handler.php';
+        require_once PBR_PLUGIN_DIR . 'includes/class-queue-handler.php';
         
         if (is_admin()) {
             require_once PBR_PLUGIN_DIR . 'admin/class-admin-pages.php';
@@ -90,12 +91,12 @@ register_activation_hook(__FILE__, function() {
     
     PBR_Prompts::init_default_prompts();
     
-    // Create logs table
     global $wpdb;
-    $table_name = $wpdb->prefix . 'pbr_logs';
     $charset_collate = $wpdb->get_charset_collate();
     
-    $sql = "CREATE TABLE IF NOT EXISTS $table_name (
+    // Create logs table
+    $logs_table = $wpdb->prefix . 'pbr_logs';
+    $logs_sql = "CREATE TABLE IF NOT EXISTS $logs_table (
         id bigint(20) NOT NULL AUTO_INCREMENT,
         action_type varchar(50) NOT NULL,
         product_name varchar(255) NOT NULL,
@@ -105,8 +106,26 @@ register_activation_hook(__FILE__, function() {
         PRIMARY KEY (id)
     ) $charset_collate;";
     
+    // Create queue table
+    $queue_table = $wpdb->prefix . 'pbr_queue';
+    $queue_sql = "CREATE TABLE IF NOT EXISTS $queue_table (
+        id bigint(20) NOT NULL AUTO_INCREMENT,
+        item_name varchar(255) NOT NULL,
+        item_type varchar(50) NOT NULL DEFAULT 'product',
+        keywords text,
+        status varchar(50) NOT NULL DEFAULT 'pending',
+        result text,
+        error_message text,
+        created_at datetime DEFAULT CURRENT_TIMESTAMP,
+        processed_at datetime,
+        PRIMARY KEY (id),
+        KEY status (status),
+        KEY created_at (created_at)
+    ) $charset_collate;";
+    
     require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
-    dbDelta($sql);
+    dbDelta($logs_sql);
+    dbDelta($queue_sql);
 });
 
 // Initialize Plugin

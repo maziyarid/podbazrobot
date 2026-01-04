@@ -47,6 +47,15 @@ class PBR_Admin_Pages {
         
         add_submenu_page(
             'podbaz-robot',
+            'تولید دسته‌جمعی',
+            '📦 تولید دسته‌جمعی',
+            'manage_options',
+            'podbaz-bulk',
+            [$this, 'render_bulk_page']
+        );
+        
+        add_submenu_page(
+            'podbaz-robot',
             'به‌روزرسانی محتوا',
             '🔄 به‌روزرسانی',
             'manage_options',
@@ -151,5 +160,12 @@ class PBR_Admin_Pages {
      */
     public function render_logs_page() {
         include PBR_PLUGIN_DIR . 'admin/views/logs-page.php';
+    }
+    
+    /**
+     * Render bulk page
+     */
+    public function render_bulk_page() {
+        include PBR_PLUGIN_DIR . 'admin/views/bulk-page.php';
     }
 }
