@@ -40,6 +40,9 @@ class PBR_HTML_Parser {
         // Extract JSON
         $parsed['json_data'] = $this->extract_json($raw_content);
         
+        // Remove JSON from content BEFORE further processing
+        $raw_content = $this->remove_json_block($raw_content);
+        
         // Populate from JSON
         if ($parsed['json_data']) {
             $this->populate_from_json($parsed);
@@ -70,6 +73,26 @@ class PBR_HTML_Parser {
             }
         }
         return null;
+    }
+    
+    /**
+     * Remove JSON blocks from content
+     */
+    private function remove_json_block($content) {
+        // Remove fenced JSON code blocks (```json ... ```)
+        $content = preg_replace('/```json\s*[\s\S]*?\s*```/m', '', $content);
+        
+        // Remove inline JSON objects at the end of content
+        // Pattern matches JSON starting with common keys like "productName", "englishName", etc.
+        $content = preg_replace('/\{\s*"(?:productName|englishName|keywords|slug|shortDescription|htmlContent|customFields)"[\s\S]*\}\s*$/u', '', $content);
+        
+        // Remove any trailing JSON that starts with common keys
+        $content = preg_replace('/\n\s*\{\s*"[a-zA-Z]+"\s*:[\s\S]*?\}\s*$/u', '', $content);
+        
+        // Remove JSON after HTML closing tag
+        $content = preg_replace('/<\/div>\s*\n*\s*\{[\s\S]*\}\s*$/u', '</div>', $content);
+        
+        return trim($content);
     }
     
     /**
@@ -212,6 +235,15 @@ class PBR_HTML_Parser {
             if (preg_match('/### ۳\. کد HTML.*?\n\n(<div[\s\S]*<\/div>)/us', $content, $match)) {
                 $parsed['html_content'] = trim($match[1]);
             }
+        }
+        
+        // Clean any JSON from the HTML content
+        if (!empty($parsed['html_content'])) {
+            // Remove any JSON that might be at the end
+            $parsed['html_content'] = preg_replace('/\{\s*"(?:productName|englishName|keywords|slug|shortDescription|htmlContent|customFields)"[\s\S]*\}\s*$/u', '', $parsed['html_content']);
+            $parsed['html_content'] = preg_replace('/\n\s*\{\s*"[a-zA-Z]+"\s*:[\s\S]*?\}\s*$/u', '', $parsed['html_content']);
+            $parsed['html_content'] = preg_replace('/<\/div>\s*\n*\s*\{[\s\S]*\}\s*$/u', '</div>', $parsed['html_content']);
+            $parsed['html_content'] = trim($parsed['html_content']);
         }
         
         // Validate and clean HTML
