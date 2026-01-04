@@ -256,9 +256,22 @@ class PBR_Ajax_Handlers {
         if (isset($_POST['auto_publish'])) {
             update_option('pbr_auto_publish', sanitize_text_field($_POST['auto_publish']));
         }
+        if (isset($_POST['primary_color'])) {
+            $color = sanitize_text_field($_POST['primary_color']);
+            // Validate hex color format
+            if (preg_match('/^#[0-9A-Fa-f]{6}$/', $color)) {
+                update_option('pbr_primary_color', $color);
+            }
+        }
         
         $enable_logging = isset($_POST['enable_logging']) ? 'yes' : 'no';
         update_option('pbr_enable_logging', $enable_logging);
+        
+        $enable_multi_agent = isset($_POST['enable_multi_agent']) ? 'yes' : 'no';
+        update_option('pbr_enable_multi_agent', $enable_multi_agent);
+        
+        $use_theme_color = isset($_POST['use_theme_color']) ? 'yes' : 'no';
+        update_option('pbr_use_theme_color', $use_theme_color);
         
         // Save field mappings if provided
         if (isset($_POST['field_mapping']) && is_array($_POST['field_mapping'])) {
