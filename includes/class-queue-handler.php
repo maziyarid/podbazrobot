@@ -46,14 +46,20 @@ class PBR_Queue_Handler {
     public function get_queue_items($status = null, $limit = 100, $offset = 0) {
         global $wpdb;
         
-        $sql = "SELECT * FROM {$this->table_name}";
-        
         if ($status) {
-            $sql .= $wpdb->prepare(" WHERE status = %s", $status);
+            $sql = $wpdb->prepare(
+                "SELECT * FROM {$this->table_name} WHERE status = %s ORDER BY created_at ASC LIMIT %d OFFSET %d",
+                $status,
+                $limit,
+                $offset
+            );
+        } else {
+            $sql = $wpdb->prepare(
+                "SELECT * FROM {$this->table_name} ORDER BY created_at ASC LIMIT %d OFFSET %d",
+                $limit,
+                $offset
+            );
         }
-        
-        $sql .= " ORDER BY created_at ASC LIMIT %d OFFSET %d";
-        $sql = $wpdb->prepare($sql, $limit, $offset);
         
         return $wpdb->get_results($sql, ARRAY_A);
     }
