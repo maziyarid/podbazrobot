@@ -103,8 +103,8 @@ class PBR_HTML_Parser {
             $possible_json = substr($content, $json_start);
             
             // Try to decode it to verify it's valid JSON
-            $test_json = json_decode($possible_json, true);
-            if (json_last_error() === JSON_ERROR_NONE) {
+            // Only remove if it decodes successfully (ensuring proper structure)
+            if (json_decode($possible_json) !== null && json_last_error() === JSON_ERROR_NONE) {
                 // It's valid JSON, remove it
                 $content = substr($content, 0, $json_start);
             }
