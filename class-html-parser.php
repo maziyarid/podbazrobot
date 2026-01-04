@@ -424,10 +424,16 @@ class PBR_HTML_Parser {
      * Remove trailing JSON object from content
      */
     private function remove_trailing_json_object($content) {
+        // Limit search scope to last 5000 characters to improve performance
+        $search_len = min(5000, strlen($content));
+        $search_content = substr($content, -$search_len);
+        
         // Find the last opening brace followed by JSON-like content
         // Look for patterns that indicate a JSON object (key-value pairs with quotes)
-        if (preg_match('/\s*\{\s*"[^"]+"\s*:[\s\S]*$/u', $content, $match, PREG_OFFSET_CAPTURE)) {
-            $json_start = $match[0][1];
+        // Using a more specific pattern with limited scope
+        if (preg_match('/\s*\{\s*"[^"]+"\s*:[^}]{0,4000}\}?\s*$/u', $search_content, $match, PREG_OFFSET_CAPTURE)) {
+            $json_start_in_search = $match[0][1];
+            $json_start = strlen($content) - $search_len + $json_start_in_search;
             $possible_json = substr($content, $json_start);
             
             // Try to decode it to verify it's valid JSON

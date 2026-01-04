@@ -73,16 +73,26 @@ class PBR_Queue_Manager {
     public function get_items($status = null, $limit = 50, $offset = 0) {
         global $wpdb;
         
-        $where = '';
         if ($status) {
-            $where = $wpdb->prepare("WHERE status = %s", $status);
+            $sql = $wpdb->prepare(
+                "SELECT * FROM {$this->table_name} WHERE status = %s 
+                 ORDER BY priority DESC, created_at ASC 
+                 LIMIT %d OFFSET %d",
+                $status,
+                $limit,
+                $offset
+            );
+        } else {
+            $sql = $wpdb->prepare(
+                "SELECT * FROM {$this->table_name} 
+                 ORDER BY priority DESC, created_at ASC 
+                 LIMIT %d OFFSET %d",
+                $limit,
+                $offset
+            );
         }
         
-        $sql = "SELECT * FROM {$this->table_name} {$where} 
-                ORDER BY priority DESC, created_at ASC 
-                LIMIT %d OFFSET %d";
-        
-        return $wpdb->get_results($wpdb->prepare($sql, $limit, $offset), ARRAY_A);
+        return $wpdb->get_results($sql, ARRAY_A);
     }
     
     /**
@@ -333,6 +343,18 @@ class PBR_Queue_Manager {
             throw new Exception('فایل CSV یافت نشد');
         }
         
+        // Validate file extension
+        $file_ext = strtolower(pathinfo($file_path, PATHINFO_EXTENSION));
+        if ($file_ext !== 'csv') {
+            throw new Exception('فقط فایل‌های CSV مجاز هستند');
+        }
+        
+        // Check file size (max 2MB)
+        $file_size = filesize($file_path);
+        if ($file_size > 2 * 1024 * 1024) {
+            throw new Exception('حجم فایل نباید بیشتر از 2 مگابایت باشد');
+        }
+        
         $handle = fopen($file_path, 'r');
         if ($handle === false) {
             throw new Exception('خطا در خواندن فایل CSV');
@@ -341,12 +363,29 @@ class PBR_Queue_Manager {
         // Skip header row
         $header = fgetcsv($handle);
         
+        $row_count = 0;
         while (($data = fgetcsv($handle)) !== false) {
+            // Limit rows to prevent memory issues
+            if ($row_count++ > 1000) {
+                fclose($handle);
+                throw new Exception('تعداد ردیف‌ها نباید بیشتر از 1000 باشد');
+            }
+            
             if (count($data) >= 1 && !empty($data[0])) {
+                // Sanitize inputs
+                $title = sanitize_text_field($data[0]);
+                $keywords = isset($data[1]) ? sanitize_textarea_field($data[1]) : '';
+                $item_type = isset($data[2]) ? sanitize_text_field($data[2]) : 'product';
+                
+                // Validate item_type
+                if (!in_array($item_type, ['product', 'post'])) {
+                    $item_type = 'product';
+                }
+                
                 $items[] = [
-                    'title' => $data[0],
-                    'keywords' => $data[1] ?? '',
-                    'item_type' => $data[2] ?? 'product'
+                    'title' => $title,
+                    'keywords' => $keywords,
+                    'item_type' => $item_type
                 ];
             }
         }
