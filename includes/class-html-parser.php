@@ -214,6 +214,18 @@ class PBR_HTML_Parser {
             }
         }
         
+        // Method 5: Look for any <div> block in the content
+        if (empty($parsed['html_content'])) {
+            if (preg_match('/<div[^>]*>[\s\S]*<\/div>/s', $content, $match)) {
+                $parsed['html_content'] = trim($match[0]);
+            }
+        }
+        
+        // Method 6: Generate fallback HTML from available data
+        if (empty($parsed['html_content'])) {
+            $parsed['html_content'] = $this->generate_fallback_html($parsed, $content);
+        }
+        
         // Validate and clean HTML
         if (!empty($parsed['html_content'])) {
             $parsed['html_content'] = $this->validate_and_clean_html($parsed['html_content']);
@@ -226,6 +238,65 @@ class PBR_HTML_Parser {
                 $parsed['h1_title'] = trim($parsed['h1_title']);
             }
         }
+    }
+    
+    /**
+     * Generate fallback HTML from available data
+     */
+    private function generate_fallback_html($parsed, $raw_content = '') {
+        $html = '<div style="font-family: Tahoma, Arial, sans-serif; direction: rtl; text-align: right; line-height: 1.8;">';
+        
+        // Add H1 title
+        if (!empty($parsed['h1_title'])) {
+            $html .= '<h1 style="color: #333; font-size: 28px; margin-bottom: 20px;">' . esc_html($parsed['h1_title']) . '</h1>';
+        }
+        
+        // Add short description
+        if (!empty($parsed['short_description'])) {
+            $html .= '<p style="font-size: 16px; margin-bottom: 20px;">' . esc_html($parsed['short_description']) . '</p>';
+        }
+        
+        // Try to extract any paragraphs from raw content
+        if (!empty($raw_content)) {
+            // Look for markdown paragraphs after headers
+            if (preg_match_all('/(?:^|\n)(?!#|```|\||-)(.+?)(?=\n\n|\n#|$)/s', $raw_content, $matches)) {
+                foreach ($matches[1] as $paragraph) {
+                    $paragraph = trim($paragraph);
+                    // Skip very short lines and table-like content
+                    if (strlen($paragraph) > 50 && !preg_match('/^\||^-{3,}/', $paragraph)) {
+                        // Remove markdown formatting
+                        $paragraph = preg_replace('/\*\*([^*]+)\*\*/', '$1', $paragraph);
+                        $paragraph = preg_replace('/\*([^*]+)\*/', '$1', $paragraph);
+                        $paragraph = preg_replace('/\[([^\]]+)\]\([^\)]+\)/', '$1', $paragraph);
+                        
+                        if (mb_strlen($paragraph) > 30) {
+                            $html .= '<p style="margin-bottom: 15px;">' . esc_html($paragraph) . '</p>';
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Add custom fields if available
+        if (!empty($parsed['custom_fields']) && is_array($parsed['custom_fields'])) {
+            $html .= '<h2 style="color: #333; font-size: 22px; margin-top: 30px; margin-bottom: 15px;">مشخصات فنی</h2>';
+            $html .= '<ul style="list-style: none; padding: 0;">';
+            
+            foreach ($parsed['custom_fields'] as $key => $value) {
+                if (!empty($value)) {
+                    $label = ucfirst(str_replace('_', ' ', $key));
+                    $html .= '<li style="margin-bottom: 10px; padding: 8px; background: #f5f5f5; border-radius: 4px;">';
+                    $html .= '<strong>' . esc_html($label) . ':</strong> ' . esc_html($value);
+                    $html .= '</li>';
+                }
+            }
+            
+            $html .= '</ul>';
+        }
+        
+        $html .= '</div>';
+        
+        return $html;
     }
     
     /**

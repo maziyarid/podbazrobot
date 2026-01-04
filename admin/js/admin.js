@@ -11,6 +11,12 @@ var PBR = {
     init: function() {
         this.bindEvents();
         this.checkApiStatus();
+        
+        // Initialize queue page if present
+        if ($('#pbr-queue-items').length) {
+            this.refreshQueueStats();
+            this.refreshQueueItems();
+        }
     },
     
     bindEvents: function() {
@@ -51,6 +57,16 @@ var PBR = {
         
         // Prompt tabs
         $('.pbr-tab-btn').on('click', this.switchPromptTab);
+        
+        // Queue and Bulk actions
+        $('#pbr-bulk-add-form').on('submit', this.handleBulkAdd);
+        $('#pbr-process-queue-btn').on('click', this.handleProcessQueue);
+        $('#pbr-stop-queue-btn').on('click', this.handleStopQueue);
+        $('#pbr-refresh-queue-btn').on('click', this.refreshQueueItems);
+        $('#pbr-clear-completed-btn').on('click', this.handleClearCompleted);
+        $('#pbr-queue-filter').on('change', this.refreshQueueItems);
+        $(document).on('click', '.pbr-delete-queue-item', this.handleDeleteQueueItem);
+        $(document).on('click', '.pbr-retry-queue-item', this.handleRetryQueueItem);
     },
     
     // ============================================
@@ -587,6 +603,348 @@ var PBR = {
         var div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
+    },
+    
+    // ============================================
+    // Queue and Bulk Functions
+    // ============================================
+    
+    queueProcessing: false,
+    queueProcessInterval: null,
+    
+    handleBulkAdd: function(e) {
+        e.preventDefault();
+        
+        var $form = $(this);
+        var $btn = $form.find('button[type="submit"]');
+        var btnText = $btn.html();
+        
+        $btn.prop('disabled', true).html('⏳ در حال افزودن...');
+        
+        $.ajax({
+            url: pbr_ajax.url,
+            type: 'POST',
+            data: $form.serialize() + '&action=pbr_add_to_queue',
+            success: function(response) {
+                if (response.success) {
+                    PBR.showNotice('success', response.data.message);
+                    $form[0].reset();
+                    PBR.refreshQueueStats();
+                    PBR.refreshQueueItems();
+                } else {
+                    PBR.showNotice('error', response.data.message || 'خطا در افزودن به صف');
+                }
+            },
+            error: function() {
+                PBR.showNotice('error', 'خطا در ارتباط با سرور');
+            },
+            complete: function() {
+                $btn.prop('disabled', false).html(btnText);
+            }
+        });
+    },
+    
+    handleProcessQueue: function(e) {
+        e.preventDefault();
+        
+        if (PBR.queueProcessing) {
+            return;
+        }
+        
+        PBR.queueProcessing = true;
+        $('#pbr-process-queue-btn').hide();
+        $('#pbr-stop-queue-btn').show();
+        $('#pbr-processing-progress').show();
+        
+        PBR.processNextQueueItem();
+    },
+    
+    handleStopQueue: function(e) {
+        e.preventDefault();
+        
+        PBR.queueProcessing = false;
+        
+        if (PBR.queueProcessInterval) {
+            clearTimeout(PBR.queueProcessInterval);
+        }
+        
+        $('#pbr-stop-queue-btn').hide();
+        $('#pbr-process-queue-btn').show();
+        $('#pbr-processing-progress').hide();
+        
+        PBR.showNotice('info', 'پردازش صف متوقف شد');
+        PBR.refreshQueueStats();
+        PBR.refreshQueueItems();
+    },
+    
+    processNextQueueItem: function() {
+        if (!PBR.queueProcessing) {
+            return;
+        }
+        
+        // Get next pending item
+        $.ajax({
+            url: pbr_ajax.url,
+            type: 'POST',
+            data: {
+                action: 'pbr_get_queue_items',
+                nonce: pbr_ajax.nonce,
+                status: 'pending'
+            },
+            success: function(response) {
+                if (response.success && response.data.items && response.data.items.length > 0) {
+                    var item = response.data.items[0];
+                    PBR.processQueueItem(item);
+                } else {
+                    // No more pending items
+                    PBR.handleStopQueue({preventDefault: function(){}});
+                    PBR.showNotice('success', '✅ همه آیتم‌های صف پردازش شدند');
+                }
+            },
+            error: function() {
+                PBR.handleStopQueue({preventDefault: function(){}});
+                PBR.showNotice('error', 'خطا در دریافت آیتم‌های صف');
+            }
+        });
+    },
+    
+    processQueueItem: function(item) {
+        $('#processing-item-name').text(item.item_name);
+        $('#processing-status').text('در حال پردازش...');
+        
+        $.ajax({
+            url: pbr_ajax.url,
+            type: 'POST',
+            data: {
+                action: 'pbr_process_queue_item',
+                nonce: pbr_ajax.nonce,
+                item_id: item.id
+            },
+            success: function(response) {
+                if (response.success) {
+                    $('#processing-status').text('✅ موفق');
+                    PBR.updateQueueProgress();
+                    
+                    // Continue with next item after delay
+                    PBR.queueProcessInterval = setTimeout(function() {
+                        PBR.processNextQueueItem();
+                    }, 2000);
+                } else {
+                    $('#processing-status').text('❌ ناموفق: ' + (response.data.message || 'خطا'));
+                    
+                    // Continue with next item after delay
+                    PBR.queueProcessInterval = setTimeout(function() {
+                        PBR.processNextQueueItem();
+                    }, 2000);
+                }
+            },
+            error: function() {
+                $('#processing-status').text('❌ خطا در پردازش');
+                
+                // Continue with next item after delay
+                PBR.queueProcessInterval = setTimeout(function() {
+                    PBR.processNextQueueItem();
+                }, 2000);
+            }
+        });
+    },
+    
+    updateQueueProgress: function() {
+        $.ajax({
+            url: pbr_ajax.url,
+            type: 'POST',
+            data: {
+                action: 'pbr_get_queue_stats',
+                nonce: pbr_ajax.nonce
+            },
+            success: function(response) {
+                if (response.success) {
+                    var stats = response.data.stats;
+                    var processed = stats.completed + stats.failed;
+                    var total = stats.total;
+                    var percent = total > 0 ? (processed / total * 100) : 0;
+                    
+                    $('#processed-count').text(processed);
+                    $('#total-count').text(total);
+                    $('#pbr-progress-fill').css('width', percent + '%');
+                    
+                    PBR.refreshQueueStats();
+                }
+            }
+        });
+    },
+    
+    refreshQueueStats: function() {
+        $.ajax({
+            url: pbr_ajax.url,
+            type: 'POST',
+            data: {
+                action: 'pbr_get_queue_stats',
+                nonce: pbr_ajax.nonce
+            },
+            success: function(response) {
+                if (response.success) {
+                    var stats = response.data.stats;
+                    $('#stat-total').text(stats.total);
+                    $('#stat-pending').text(stats.pending);
+                    $('#stat-processing').text(stats.processing);
+                    $('#stat-completed').text(stats.completed);
+                    $('#stat-failed').text(stats.failed);
+                }
+            }
+        });
+    },
+    
+    refreshQueueItems: function() {
+        var status = $('#pbr-queue-filter').val() || 'all';
+        
+        $.ajax({
+            url: pbr_ajax.url,
+            type: 'POST',
+            data: {
+                action: 'pbr_get_queue_items',
+                nonce: pbr_ajax.nonce,
+                status: status
+            },
+            success: function(response) {
+                if (response.success) {
+                    PBR.renderQueueItems(response.data.items);
+                }
+            }
+        });
+    },
+    
+    renderQueueItems: function(items) {
+        var $tbody = $('#pbr-queue-items');
+        $tbody.empty();
+        
+        if (!items || items.length === 0) {
+            $tbody.html('<tr><td colspan="7" style="text-align: center;">آیتمی در صف وجود ندارد</td></tr>');
+            return;
+        }
+        
+        $.each(items, function(index, item) {
+            var statusClass = 'pbr-status-' + item.status;
+            var statusText = {
+                'pending': 'در انتظار',
+                'processing': 'در حال پردازش',
+                'completed': 'موفق',
+                'failed': 'ناموفق'
+            }[item.status] || item.status;
+            
+            var typeText = item.item_type === 'product' ? 'محصول' : 'پست';
+            
+            var actions = '';
+            if (item.status === 'pending') {
+                actions += '<button class="button pbr-delete-queue-item" data-id="' + item.id + '">حذف</button>';
+            } else if (item.status === 'failed') {
+                actions += '<button class="button pbr-retry-queue-item" data-id="' + item.id + '">تلاش مجدد</button> ';
+                actions += '<button class="button pbr-delete-queue-item" data-id="' + item.id + '">حذف</button>';
+            } else if (item.status === 'completed') {
+                actions += '<button class="button pbr-delete-queue-item" data-id="' + item.id + '">حذف</button>';
+            }
+            
+            var row = '<tr>' +
+                '<td>' + item.id + '</td>' +
+                '<td>' + PBR.escapeHtml(item.item_name) + '</td>' +
+                '<td>' + typeText + '</td>' +
+                '<td><span class="' + statusClass + '">' + statusText + '</span></td>' +
+                '<td>' + item.created_at + '</td>' +
+                '<td>' + (item.processed_at || '-') + '</td>' +
+                '<td>' + actions + '</td>' +
+                '</tr>';
+            
+            $tbody.append(row);
+        });
+    },
+    
+    handleDeleteQueueItem: function(e) {
+        e.preventDefault();
+        
+        if (!confirm('آیا از حذف این آیتم اطمینان دارید؟')) {
+            return;
+        }
+        
+        var itemId = $(this).data('id');
+        
+        $.ajax({
+            url: pbr_ajax.url,
+            type: 'POST',
+            data: {
+                action: 'pbr_delete_queue_item',
+                nonce: pbr_ajax.nonce,
+                item_id: itemId
+            },
+            success: function(response) {
+                if (response.success) {
+                    PBR.showNotice('success', response.data.message);
+                    PBR.refreshQueueStats();
+                    PBR.refreshQueueItems();
+                } else {
+                    PBR.showNotice('error', response.data.message || 'خطا در حذف آیتم');
+                }
+            },
+            error: function() {
+                PBR.showNotice('error', 'خطا در ارتباط با سرور');
+            }
+        });
+    },
+    
+    handleRetryQueueItem: function(e) {
+        e.preventDefault();
+        
+        var itemId = $(this).data('id');
+        
+        $.ajax({
+            url: pbr_ajax.url,
+            type: 'POST',
+            data: {
+                action: 'pbr_retry_queue_item',
+                nonce: pbr_ajax.nonce,
+                item_id: itemId
+            },
+            success: function(response) {
+                if (response.success) {
+                    PBR.showNotice('success', response.data.message);
+                    PBR.refreshQueueStats();
+                    PBR.refreshQueueItems();
+                } else {
+                    PBR.showNotice('error', response.data.message || 'خطا در تلاش مجدد');
+                }
+            },
+            error: function() {
+                PBR.showNotice('error', 'خطا در ارتباط با سرور');
+            }
+        });
+    },
+    
+    handleClearCompleted: function(e) {
+        e.preventDefault();
+        
+        if (!confirm('آیا از پاک کردن آیتم‌های موفق اطمینان دارید؟')) {
+            return;
+        }
+        
+        $.ajax({
+            url: pbr_ajax.url,
+            type: 'POST',
+            data: {
+                action: 'pbr_clear_completed',
+                nonce: pbr_ajax.nonce
+            },
+            success: function(response) {
+                if (response.success) {
+                    PBR.showNotice('success', response.data.message);
+                    PBR.refreshQueueStats();
+                    PBR.refreshQueueItems();
+                } else {
+                    PBR.showNotice('error', response.data.message || 'خطا در پاک کردن');
+                }
+            },
+            error: function() {
+                PBR.showNotice('error', 'خطا در ارتباط با سرور');
+            }
+        });
     }
 };
 

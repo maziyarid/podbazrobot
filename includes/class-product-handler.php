@@ -23,14 +23,15 @@ class PBR_Product_Handler {
         // Parse content
         $parsed = $this->parser->parse($raw_content);
         
-        // Validate HTML content
-        if (empty($parsed['html_content'])) {
-            throw new Exception('محتوای HTML یافت نشد.');
-        }
-        
-        // Get title
+        // Get title - this is required
         if (empty($parsed['h1_title'])) {
             throw new Exception('عنوان محصول یافت نشد.');
+        }
+        
+        // Validate HTML content - no longer throw exception, will use fallback
+        if (empty($parsed['html_content'])) {
+            // Log warning but continue with empty or fallback content
+            error_log('PBR Warning: HTML content is empty for product: ' . $parsed['h1_title']);
         }
         
         // Create product

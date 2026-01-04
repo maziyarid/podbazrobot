@@ -20,6 +20,15 @@ class PBR_Ajax_Handlers {
         // Load existing content
         add_action('wp_ajax_pbr_load_content', [$this, 'load_content']);
         
+        // Queue management
+        add_action('wp_ajax_pbr_add_to_queue', [$this, 'add_to_queue']);
+        add_action('wp_ajax_pbr_get_queue_items', [$this, 'get_queue_items']);
+        add_action('wp_ajax_pbr_process_queue_item', [$this, 'process_queue_item']);
+        add_action('wp_ajax_pbr_delete_queue_item', [$this, 'delete_queue_item']);
+        add_action('wp_ajax_pbr_retry_queue_item', [$this, 'retry_queue_item']);
+        add_action('wp_ajax_pbr_clear_completed', [$this, 'clear_completed']);
+        add_action('wp_ajax_pbr_get_queue_stats', [$this, 'get_queue_stats']);
+        
         // Settings
         add_action('wp_ajax_pbr_save_settings', [$this, 'save_settings']);
         add_action('wp_ajax_pbr_save_prompts', [$this, 'save_prompts']);
@@ -435,5 +444,200 @@ class PBR_Ajax_Handlers {
             'message' => $message,
             'created_at' => current_time('mysql')
         ]);
+    }
+    
+    /**
+     * Add items to queue
+     */
+    public function add_to_queue() {
+        check_ajax_referer('pbr_ajax_nonce', 'nonce');
+        
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(['message' => 'دسترسی غیرمجاز']);
+        }
+        
+        $bulk_items = sanitize_textarea_field($_POST['bulk_items'] ?? '');
+        $bulk_type = sanitize_text_field($_POST['bulk_type'] ?? 'product');
+        $keywords = sanitize_textarea_field($_POST['bulk_keywords'] ?? '');
+        
+        if (empty($bulk_items)) {
+            wp_send_json_error(['message' => 'لیست آیتم‌ها خالی است']);
+        }
+        
+        $items = array_filter(array_map('trim', explode("\n", $bulk_items)));
+        
+        if (empty($items)) {
+            wp_send_json_error(['message' => 'لیست آیتم‌ها خالی است']);
+        }
+        
+        try {
+            $queue_handler = new PBR_Queue_Handler();
+            $added_count = 0;
+            
+            foreach ($items as $item) {
+                if (!empty($item)) {
+                    $queue_handler->add_to_queue($item, $bulk_type, $keywords);
+                    $added_count++;
+                }
+            }
+            
+            wp_send_json_success([
+                'message' => "✅ {$added_count} آیتم به صف اضافه شد",
+                'count' => $added_count
+            ]);
+            
+        } catch (Exception $e) {
+            wp_send_json_error(['message' => $e->getMessage()]);
+        }
+    }
+    
+    /**
+     * Get queue items
+     */
+    public function get_queue_items() {
+        check_ajax_referer('pbr_ajax_nonce', 'nonce');
+        
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(['message' => 'دسترسی غیرمجاز']);
+        }
+        
+        $status = sanitize_text_field($_POST['status'] ?? '');
+        $status = ($status === 'all') ? null : $status;
+        
+        try {
+            $queue_handler = new PBR_Queue_Handler();
+            $items = $queue_handler->get_queue_items($status);
+            
+            wp_send_json_success(['items' => $items]);
+            
+        } catch (Exception $e) {
+            wp_send_json_error(['message' => $e->getMessage()]);
+        }
+    }
+    
+    /**
+     * Process queue item
+     */
+    public function process_queue_item() {
+        check_ajax_referer('pbr_ajax_nonce', 'nonce');
+        
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(['message' => 'دسترسی غیرمجاز']);
+        }
+        
+        $item_id = intval($_POST['item_id'] ?? 0);
+        
+        if (!$item_id) {
+            wp_send_json_error(['message' => 'شناسه آیتم الزامی است']);
+        }
+        
+        try {
+            $queue_handler = new PBR_Queue_Handler();
+            $result = $queue_handler->process_item($item_id);
+            
+            wp_send_json_success([
+                'message' => '✅ آیتم با موفقیت پردازش شد',
+                'result' => $result
+            ]);
+            
+        } catch (Exception $e) {
+            wp_send_json_error(['message' => $e->getMessage()]);
+        }
+    }
+    
+    /**
+     * Delete queue item
+     */
+    public function delete_queue_item() {
+        check_ajax_referer('pbr_ajax_nonce', 'nonce');
+        
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(['message' => 'دسترسی غیرمجاز']);
+        }
+        
+        $item_id = intval($_POST['item_id'] ?? 0);
+        
+        if (!$item_id) {
+            wp_send_json_error(['message' => 'شناسه آیتم الزامی است']);
+        }
+        
+        try {
+            $queue_handler = new PBR_Queue_Handler();
+            $queue_handler->delete_item($item_id);
+            
+            wp_send_json_success(['message' => '✅ آیتم حذف شد']);
+            
+        } catch (Exception $e) {
+            wp_send_json_error(['message' => $e->getMessage()]);
+        }
+    }
+    
+    /**
+     * Retry queue item
+     */
+    public function retry_queue_item() {
+        check_ajax_referer('pbr_ajax_nonce', 'nonce');
+        
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(['message' => 'دسترسی غیرمجاز']);
+        }
+        
+        $item_id = intval($_POST['item_id'] ?? 0);
+        
+        if (!$item_id) {
+            wp_send_json_error(['message' => 'شناسه آیتم الزامی است']);
+        }
+        
+        try {
+            $queue_handler = new PBR_Queue_Handler();
+            $queue_handler->retry_item($item_id);
+            
+            wp_send_json_success(['message' => '✅ آیتم مجدداً به صف اضافه شد']);
+            
+        } catch (Exception $e) {
+            wp_send_json_error(['message' => $e->getMessage()]);
+        }
+    }
+    
+    /**
+     * Clear completed items
+     */
+    public function clear_completed() {
+        check_ajax_referer('pbr_ajax_nonce', 'nonce');
+        
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(['message' => 'دسترسی غیرمجاز']);
+        }
+        
+        try {
+            $queue_handler = new PBR_Queue_Handler();
+            $queue_handler->clear_completed();
+            
+            wp_send_json_success(['message' => '✅ آیتم‌های موفق پاک شدند']);
+            
+        } catch (Exception $e) {
+            wp_send_json_error(['message' => $e->getMessage()]);
+        }
+    }
+    
+    /**
+     * Get queue statistics
+     */
+    public function get_queue_stats() {
+        check_ajax_referer('pbr_ajax_nonce', 'nonce');
+        
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(['message' => 'دسترسی غیرمجاز']);
+        }
+        
+        try {
+            $queue_handler = new PBR_Queue_Handler();
+            $stats = $queue_handler->get_stats();
+            
+            wp_send_json_success(['stats' => $stats]);
+            
+        } catch (Exception $e) {
+            wp_send_json_error(['message' => $e->getMessage()]);
+        }
     }
 }
