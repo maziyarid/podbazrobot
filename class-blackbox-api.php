@@ -8,13 +8,26 @@ class PBR_Blackbox_API {
     
     private $api_key;
     private $model;
-    private $base_url = 'https://api.blackbox.ai/api/chat';
+    private $base_url = 'https://api.blackbox.ai/v1/chat/completions';
     private $timeout = 300;
 
     public function __construct() {
-        $this->api_key = get_option('pbr_blackbox_api_key', '');
-        $this->model = get_option('pbr_claude_model', 'claude-sonnet-4-20250514');
+        $this->api_key = trim(get_option('pbr_blackbox_api_key', ''));
+        $this->model = get_option('pbr_claude_model', 'blackboxai/x-ai/grok-code-fast-1:free');
+    }
+    
+    /**
+     * Get primary color for content generation
+     */
+    private function get_primary_color() {
+        if (get_option('pbr_use_theme_color') === 'yes') {
+            $theme_color = get_theme_mod('primary_color');
+            if (!empty($theme_color)) {
+                return $theme_color;
+            }
         }
+        return get_option('pbr_primary_color', '#29853a');
+    }
 
     /**
      * Generate content using Blackbox API
@@ -24,10 +37,13 @@ class PBR_Blackbox_API {
             throw new Exception('کلید API بلک‌باکس تنظیم نشده است.');
         }
         
+        $primary_color = $this->get_primary_color();
         $full_message = $prompt . "\n\n---\n\n" . $user_message;
+        $full_message .= "\n\nرنگ اصلی سایت: " . $primary_color;
         
         $response = wp_remote_post($this->base_url, [
             'timeout' => $this->timeout,
+            'sslverify' => true,
             'headers' => [
                 'Authorization' => 'Bearer ' . $this->api_key,
                 'Content-Type' => 'application/json',
@@ -41,12 +57,14 @@ class PBR_Blackbox_API {
                 ],
                 'model' => $this->model,
                 'max_tokens' => $max_tokens,
-                'temperature' => 0.7
+                'temperature' => 0.7,
+                'top_p' => 0.9,
+                'stream' => false
             ])
         ]);
         
         return $this->handle_response($response);
-        }
+    }
 
     /**
      * Generate HTML content for product
