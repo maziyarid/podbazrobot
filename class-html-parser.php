@@ -521,7 +521,16 @@ class PBR_HTML_Parser {
      * Generate fallback HTML when extraction fails
      */
     private function generate_fallback_html($parsed) {
-        $primary_color = get_option('pbr_primary_color', '#29853a');
+        // Use the same color logic as Blackbox API
+        $primary_color = '#29853a'; // default
+        if (get_option('pbr_use_theme_color') === 'yes') {
+            $theme_color = get_theme_mod('primary_color');
+            if (!empty($theme_color)) {
+                $primary_color = $theme_color;
+            }
+        } else {
+            $primary_color = get_option('pbr_primary_color', '#29853a');
+        }
         
         $html = '<div style="font-family: Tahoma, Arial, sans-serif; direction: rtl; text-align: right; line-height: 1.8; color: #333;">';
         

@@ -268,7 +268,7 @@ class PBR_Queue_Manager {
         $result = $handler->create_product($content, get_option('pbr_auto_publish', 'draft'));
         
         return [
-            'id' => $result['product_id'],
+            'id' => isset($result['product_id']) ? $result['product_id'] : $result['id'],
             'title' => $result['title']
         ];
     }
@@ -290,7 +290,7 @@ class PBR_Queue_Manager {
         $result = $handler->create_post($content, get_option('pbr_auto_publish', 'draft'));
         
         return [
-            'id' => $result['post_id'],
+            'id' => isset($result['post_id']) ? $result['post_id'] : $result['id'],
             'title' => $result['title']
         ];
     }

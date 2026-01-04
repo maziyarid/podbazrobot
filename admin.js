@@ -738,24 +738,26 @@ var PBR_Queue = {
     
     handleProcessQueue: function() {
         var $btn = $(this);
-        var count = 5; // Process 5 items at a time
+        var batchSize = 5; // Process up to 5 items
         
         $btn.prop('disabled', true);
         $('#pbr-queue-progress-modal').fadeIn(200);
         $('#pbr-current-item').text('در حال پردازش موارد صف...');
         $('#pbr-process-results').html('');
+        $('.pbr-progress-fill').css('width', '0%');
+        $('#pbr-progress-stats').text('0 از ' + batchSize + ' مورد پردازش شد');
         
-        PBR_Queue.processItems(0, count);
+        PBR_Queue.processItems(0, batchSize);
     },
     
-    processItems: function(processed, total) {
+    processItems: function(processed, batchSize) {
         $.ajax({
             url: pbr_ajax.url,
             type: 'POST',
             data: {
                 action: 'pbr_process_queue',
                 nonce: pbr_ajax.nonce,
-                count: 1
+                count: 1  // Process one item at a time for better progress tracking
             },
             timeout: 300000,
             success: function(response) {
@@ -770,16 +772,17 @@ var PBR_Queue = {
                     
                     $('#pbr-process-results').append('<p>' + msg + '</p>');
                     
-                    var progress = (processed / total) * 100;
+                    var progress = (processed / batchSize) * 100;
                     $('.pbr-progress-fill').css('width', progress + '%');
-                    $('#pbr-progress-stats').text(processed + ' از ' + total + ' مورد پردازش شد');
+                    $('#pbr-progress-stats').text(processed + ' از ' + batchSize + ' مورد پردازش شد');
                     
-                    if (processed < total) {
-                        PBR_Queue.processItems(processed, total);
+                    if (processed < batchSize) {
+                        PBR_Queue.processItems(processed, batchSize);
                     } else {
                         PBR_Queue.finishProcessing();
                     }
                 } else {
+                    // No more items to process
                     PBR_Queue.finishProcessing();
                 }
             },

@@ -274,7 +274,12 @@ class PBR_Ajax_Handlers {
         update_option('pbr_enable_multi_agent', $enable_multi_agent);
         
         if (isset($_POST['primary_color'])) {
-            update_option('pbr_primary_color', sanitize_hex_color($_POST['primary_color']));
+            $color = sanitize_hex_color($_POST['primary_color']);
+            if (empty($color)) {
+                // Default to the previous value if invalid
+                $color = get_option('pbr_primary_color', '#29853a');
+            }
+            update_option('pbr_primary_color', $color);
         }
         
         $use_theme_color = isset($_POST['use_theme_color']) ? 'yes' : 'no';
