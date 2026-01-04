@@ -51,6 +51,10 @@ var PBR = {
         
         // Prompt tabs
         $('.pbr-tab-btn').on('click', this.switchPromptTab);
+        
+        // Color picker sync
+        $('#primary_color').on('change', this.syncColorPicker);
+        $('#primary_color_hex').on('change', this.syncColorHex);
     },
     
     // ============================================
@@ -587,6 +591,18 @@ var PBR = {
         var div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
+    },
+    
+    syncColorPicker: function() {
+        var color = $(this).val();
+        $('#primary_color_hex').val(color);
+    },
+    
+    syncColorHex: function() {
+        var color = $(this).val();
+        if (/^#[0-9A-F]{6}$/i.test(color)) {
+            $('#primary_color').val(color);
+        }
     }
 };
 
