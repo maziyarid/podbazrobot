@@ -82,17 +82,35 @@ class PBR_HTML_Parser {
         // Remove fenced JSON code blocks (```json ... ```)
         $content = preg_replace('/```json\s*[\s\S]*?\s*```/m', '', $content);
         
-        // Remove inline JSON objects at the end of content
-        // Pattern matches JSON starting with common keys like "productName", "englishName", etc.
-        $content = preg_replace('/\{\s*"(?:productName|englishName|keywords|slug|shortDescription|htmlContent|customFields)"[\s\S]*\}\s*$/u', '', $content);
-        
-        // Remove any trailing JSON that starts with common keys
-        $content = preg_replace('/\n\s*\{\s*"[a-zA-Z]+"\s*:[\s\S]*?\}\s*$/u', '', $content);
-        
-        // Remove JSON after HTML closing tag
+        // Remove JSON after HTML closing tag (most specific pattern first)
         $content = preg_replace('/<\/div>\s*\n*\s*\{[\s\S]*\}\s*$/u', '</div>', $content);
         
+        // Remove inline JSON objects at the end of content
+        // This pattern matches a complete JSON object at the end, using balanced braces
+        $content = $this->remove_trailing_json_object($content);
+        
         return trim($content);
+    }
+    
+    /**
+     * Remove trailing JSON object from content
+     */
+    private function remove_trailing_json_object($content) {
+        // Find the last opening brace followed by JSON-like content
+        // Look for patterns that indicate a JSON object (key-value pairs with quotes)
+        if (preg_match('/\s*\{\s*"[^"]+"\s*:[\s\S]*$/u', $content, $match, PREG_OFFSET_CAPTURE)) {
+            $json_start = $match[0][1];
+            $possible_json = substr($content, $json_start);
+            
+            // Try to decode it to verify it's valid JSON
+            $test_json = json_decode($possible_json, true);
+            if (json_last_error() === JSON_ERROR_NONE) {
+                // It's valid JSON, remove it
+                $content = substr($content, 0, $json_start);
+            }
+        }
+        
+        return $content;
     }
     
     /**
@@ -237,13 +255,9 @@ class PBR_HTML_Parser {
             }
         }
         
-        // Clean any JSON from the HTML content
+        // Clean any JSON from the HTML content using the same method
         if (!empty($parsed['html_content'])) {
-            // Remove any JSON that might be at the end
-            $parsed['html_content'] = preg_replace('/\{\s*"(?:productName|englishName|keywords|slug|shortDescription|htmlContent|customFields)"[\s\S]*\}\s*$/u', '', $parsed['html_content']);
-            $parsed['html_content'] = preg_replace('/\n\s*\{\s*"[a-zA-Z]+"\s*:[\s\S]*?\}\s*$/u', '', $parsed['html_content']);
-            $parsed['html_content'] = preg_replace('/<\/div>\s*\n*\s*\{[\s\S]*\}\s*$/u', '</div>', $parsed['html_content']);
-            $parsed['html_content'] = trim($parsed['html_content']);
+            $parsed['html_content'] = $this->remove_json_block($parsed['html_content']);
         }
         
         // Validate and clean HTML
