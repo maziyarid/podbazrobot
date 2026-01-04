@@ -101,14 +101,14 @@ class PBR_Admin_Pages {
         
         wp_enqueue_style(
             'pbr-admin-css',
-            PBR_PLUGIN_URL . 'admin.css',
+            PBR_PLUGIN_URL . 'admin/css/admin.css',
             [],
             PBR_VERSION
         );
         
         wp_enqueue_script(
             'pbr-admin-js',
-            PBR_PLUGIN_URL . 'admin.js',
+            PBR_PLUGIN_URL . 'admin/js/admin.js',
             ['jquery'],
             PBR_VERSION,
             true
@@ -124,48 +124,48 @@ class PBR_Admin_Pages {
      * Render main page
      */
     public function render_main_page() {
-        include PBR_PLUGIN_DIR . 'main-page.php';
+        include PBR_PLUGIN_DIR . 'admin/views/main-page.php';
     }
 
     /**
      * Render post page
      */
     public function render_post_page() {
-        include PBR_PLUGIN_DIR . 'post-page.php';
+        include PBR_PLUGIN_DIR . 'admin/views/post-page.php';
     }
 
     /**
      * Render update page
      */
     public function render_update_page() {
-        include PBR_PLUGIN_DIR . 'update-page.php';
+        include PBR_PLUGIN_DIR . 'admin/views/update-page.php';
     }
     
     /**
      * Render queue page
      */
     public function render_queue_page() {
-        include PBR_PLUGIN_DIR . 'queue-page.php';
+        include PBR_PLUGIN_DIR . 'admin/views/queue-page.php';
     }
 
     /**
      * Render prompts page
      */
     public function render_prompts_page() {
-        include PBR_PLUGIN_DIR . 'prompts-page.php';
+        include PBR_PLUGIN_DIR . 'admin/views/prompts-page.php';
     }
 
     /**
      * Render settings page
      */
     public function render_settings_page() {
-        include PBR_PLUGIN_DIR . 'settings-page.php';
+        include PBR_PLUGIN_DIR . 'admin/views/settings-page.php';
     }
 
     /**
      * Render logs page
      */
     public function render_logs_page() {
-        include PBR_PLUGIN_DIR . 'logs-page.php';
+        include PBR_PLUGIN_DIR . 'admin/views/logs-page.php';
     }
 }

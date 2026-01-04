@@ -44,18 +44,18 @@ final class Podbaz_Robot {
     }
     
     private function load_dependencies() {
-        require_once PBR_PLUGIN_DIR . 'class-prompts.php';
-        require_once PBR_PLUGIN_DIR . 'class-blackbox-api.php';
-        require_once PBR_PLUGIN_DIR . 'class-tavily-api.php';
-        require_once PBR_PLUGIN_DIR . 'class-html-parser.php';
-        require_once PBR_PLUGIN_DIR . 'class-custom-fields.php';
-        require_once PBR_PLUGIN_DIR . 'class-product-handler.php';
-        require_once PBR_PLUGIN_DIR . 'class-post-handler.php';
-        require_once PBR_PLUGIN_DIR . 'class-queue-manager.php';
+        require_once PBR_PLUGIN_DIR . 'includes/class-prompts.php';
+        require_once PBR_PLUGIN_DIR . 'includes/class-blackbox-api.php';
+        require_once PBR_PLUGIN_DIR . 'includes/class-tavily-api.php';
+        require_once PBR_PLUGIN_DIR . 'includes/class-html-parser.php';
+        require_once PBR_PLUGIN_DIR . 'includes/class-custom-fields.php';
+        require_once PBR_PLUGIN_DIR . 'includes/class-product-handler.php';
+        require_once PBR_PLUGIN_DIR . 'includes/class-post-handler.php';
+        require_once PBR_PLUGIN_DIR . 'includes/class-queue-manager.php';
         
         if (is_admin()) {
-            require_once PBR_PLUGIN_DIR . 'class-admin-pages.php';
-            require_once PBR_PLUGIN_DIR . 'class-ajax-handlers.php';
+            require_once PBR_PLUGIN_DIR . 'admin/class-admin-pages.php';
+            require_once PBR_PLUGIN_DIR . 'admin/class-ajax-handlers.php';
         }
     }
     
