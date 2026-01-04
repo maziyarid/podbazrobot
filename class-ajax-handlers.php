@@ -32,6 +32,16 @@ class PBR_Ajax_Handlers {
         // Logs
         add_action('wp_ajax_pbr_clear_logs', [$this, 'clear_logs']);
         add_action('wp_ajax_pbr_export_logs', [$this, 'export_logs']);
+        
+        // Queue management
+        add_action('wp_ajax_pbr_add_to_queue', [$this, 'add_to_queue']);
+        add_action('wp_ajax_pbr_add_bulk_to_queue', [$this, 'add_bulk_to_queue']);
+        add_action('wp_ajax_pbr_process_queue', [$this, 'process_queue']);
+        add_action('wp_ajax_pbr_retry_queue_item', [$this, 'retry_queue_item']);
+        add_action('wp_ajax_pbr_delete_queue_item', [$this, 'delete_queue_item']);
+        add_action('wp_ajax_pbr_clear_completed', [$this, 'clear_completed']);
+        add_action('wp_ajax_pbr_get_queue_stats', [$this, 'get_queue_stats']);
+        add_action('wp_ajax_pbr_upload_csv', [$this, 'upload_csv']);
     }
     
     /**
@@ -260,6 +270,21 @@ class PBR_Ajax_Handlers {
         $enable_logging = isset($_POST['enable_logging']) ? 'yes' : 'no';
         update_option('pbr_enable_logging', $enable_logging);
         
+        $enable_multi_agent = isset($_POST['enable_multi_agent']) ? 'yes' : 'no';
+        update_option('pbr_enable_multi_agent', $enable_multi_agent);
+        
+        if (isset($_POST['primary_color'])) {
+            $color = sanitize_hex_color($_POST['primary_color']);
+            if (empty($color)) {
+                // Default to the previous value if invalid
+                $color = get_option('pbr_primary_color', '#29853a');
+            }
+            update_option('pbr_primary_color', $color);
+        }
+        
+        $use_theme_color = isset($_POST['use_theme_color']) ? 'yes' : 'no';
+        update_option('pbr_use_theme_color', $use_theme_color);
+        
         // Save field mappings if provided
         if (isset($_POST['field_mapping']) && is_array($_POST['field_mapping'])) {
             $mappings = [];
@@ -435,5 +460,243 @@ class PBR_Ajax_Handlers {
             'message' => $message,
             'created_at' => current_time('mysql')
         ]);
+    }
+    
+    /**
+     * Add single item to queue
+     */
+    public function add_to_queue() {
+        check_ajax_referer('pbr_ajax_nonce', 'nonce');
+        
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(['message' => 'دسترسی غیرمجاز']);
+        }
+        
+        $title = sanitize_text_field($_POST['title'] ?? '');
+        $keywords = sanitize_textarea_field($_POST['keywords'] ?? '');
+        $item_type = sanitize_text_field($_POST['item_type'] ?? 'product');
+        $priority = intval($_POST['priority'] ?? 0);
+        
+        if (empty($title)) {
+            wp_send_json_error(['message' => 'عنوان الزامی است']);
+        }
+        
+        try {
+            $queue_manager = new PBR_Queue_Manager();
+            $id = $queue_manager->add_item($title, $keywords, $item_type, $priority);
+            
+            wp_send_json_success([
+                'message' => '✅ مورد به صف اضافه شد',
+                'id' => $id
+            ]);
+        } catch (Exception $e) {
+            wp_send_json_error(['message' => $e->getMessage()]);
+        }
+    }
+    
+    /**
+     * Add bulk items to queue
+     */
+    public function add_bulk_to_queue() {
+        check_ajax_referer('pbr_ajax_nonce', 'nonce');
+        
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(['message' => 'دسترسی غیرمجاز']);
+        }
+        
+        $bulk_text = sanitize_textarea_field($_POST['bulk_items'] ?? '');
+        
+        if (empty($bulk_text)) {
+            wp_send_json_error(['message' => 'لطفاً موارد را وارد کنید']);
+        }
+        
+        try {
+            $items = PBR_Queue_Manager::parse_bulk_text($bulk_text);
+            
+            if (empty($items)) {
+                wp_send_json_error(['message' => 'موردی برای افزودن یافت نشد']);
+            }
+            
+            $queue_manager = new PBR_Queue_Manager();
+            $result = $queue_manager->add_bulk_items($items);
+            
+            $message = "✅ {$result['added']} مورد اضافه شد";
+            if (!empty($result['errors'])) {
+                $message .= " - " . count($result['errors']) . " خطا";
+            }
+            
+            wp_send_json_success([
+                'message' => $message,
+                'added' => $result['added'],
+                'errors' => $result['errors']
+            ]);
+        } catch (Exception $e) {
+            wp_send_json_error(['message' => $e->getMessage()]);
+        }
+    }
+    
+    /**
+     * Upload and parse CSV file
+     */
+    public function upload_csv() {
+        check_ajax_referer('pbr_ajax_nonce', 'nonce');
+        
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(['message' => 'دسترسی غیرمجاز']);
+        }
+        
+        if (empty($_FILES['csv_file'])) {
+            wp_send_json_error(['message' => 'لطفاً فایل را انتخاب کنید']);
+        }
+        
+        $file = $_FILES['csv_file'];
+        
+        if ($file['error'] !== UPLOAD_ERR_OK) {
+            wp_send_json_error(['message' => 'خطا در بارگذاری فایل']);
+        }
+        
+        try {
+            $items = PBR_Queue_Manager::parse_csv($file['tmp_name']);
+            
+            if (empty($items)) {
+                wp_send_json_error(['message' => 'موردی در فایل CSV یافت نشد']);
+            }
+            
+            $queue_manager = new PBR_Queue_Manager();
+            $result = $queue_manager->add_bulk_items($items);
+            
+            $message = "✅ {$result['added']} مورد از CSV اضافه شد";
+            if (!empty($result['errors'])) {
+                $message .= " - " . count($result['errors']) . " خطا";
+            }
+            
+            wp_send_json_success([
+                'message' => $message,
+                'added' => $result['added'],
+                'errors' => $result['errors']
+            ]);
+        } catch (Exception $e) {
+            wp_send_json_error(['message' => $e->getMessage()]);
+        }
+    }
+    
+    /**
+     * Process queue items
+     */
+    public function process_queue() {
+        check_ajax_referer('pbr_ajax_nonce', 'nonce');
+        
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(['message' => 'دسترسی غیرمجاز']);
+        }
+        
+        $count = intval($_POST['count'] ?? 1);
+        
+        try {
+            $queue_manager = new PBR_Queue_Manager();
+            $results = $queue_manager->process_batch($count);
+            
+            wp_send_json_success([
+                'results' => $results,
+                'processed' => count($results)
+            ]);
+        } catch (Exception $e) {
+            wp_send_json_error(['message' => $e->getMessage()]);
+        }
+    }
+    
+    /**
+     * Retry failed queue item
+     */
+    public function retry_queue_item() {
+        check_ajax_referer('pbr_ajax_nonce', 'nonce');
+        
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(['message' => 'دسترسی غیرمجاز']);
+        }
+        
+        $id = intval($_POST['id'] ?? 0);
+        
+        if (!$id) {
+            wp_send_json_error(['message' => 'شناسه نامعتبر']);
+        }
+        
+        try {
+            $queue_manager = new PBR_Queue_Manager();
+            $queue_manager->retry_item($id);
+            
+            wp_send_json_success(['message' => '✅ مورد برای تلاش مجدد آماده شد']);
+        } catch (Exception $e) {
+            wp_send_json_error(['message' => $e->getMessage()]);
+        }
+    }
+    
+    /**
+     * Delete queue item
+     */
+    public function delete_queue_item() {
+        check_ajax_referer('pbr_ajax_nonce', 'nonce');
+        
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(['message' => 'دسترسی غیرمجاز']);
+        }
+        
+        $id = intval($_POST['id'] ?? 0);
+        
+        if (!$id) {
+            wp_send_json_error(['message' => 'شناسه نامعتبر']);
+        }
+        
+        try {
+            $queue_manager = new PBR_Queue_Manager();
+            $queue_manager->delete_item($id);
+            
+            wp_send_json_success(['message' => '✅ مورد حذف شد']);
+        } catch (Exception $e) {
+            wp_send_json_error(['message' => $e->getMessage()]);
+        }
+    }
+    
+    /**
+     * Clear completed items
+     */
+    public function clear_completed() {
+        check_ajax_referer('pbr_ajax_nonce', 'nonce');
+        
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(['message' => 'دسترسی غیرمجاز']);
+        }
+        
+        try {
+            $queue_manager = new PBR_Queue_Manager();
+            $deleted = $queue_manager->clear_completed();
+            
+            wp_send_json_success([
+                'message' => "✅ {$deleted} مورد تکمیل شده حذف شد",
+                'deleted' => $deleted
+            ]);
+        } catch (Exception $e) {
+            wp_send_json_error(['message' => $e->getMessage()]);
+        }
+    }
+    
+    /**
+     * Get queue statistics
+     */
+    public function get_queue_stats() {
+        check_ajax_referer('pbr_ajax_nonce', 'nonce');
+        
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(['message' => 'دسترسی غیرمجاز']);
+        }
+        
+        try {
+            $queue_manager = new PBR_Queue_Manager();
+            $stats = $queue_manager->get_stats();
+            
+            wp_send_json_success($stats);
+        } catch (Exception $e) {
+            wp_send_json_error(['message' => $e->getMessage()]);
+        }
     }
 }

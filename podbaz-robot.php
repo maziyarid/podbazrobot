@@ -44,17 +44,18 @@ final class Podbaz_Robot {
     }
     
     private function load_dependencies() {
-        require_once PBR_PLUGIN_DIR . 'includes/class-prompts.php';
-        require_once PBR_PLUGIN_DIR . 'includes/class-blackbox-api.php';
-        require_once PBR_PLUGIN_DIR . 'includes/class-tavily-api.php';
-        require_once PBR_PLUGIN_DIR . 'includes/class-html-parser.php';
-        require_once PBR_PLUGIN_DIR . 'includes/class-custom-fields.php';
-        require_once PBR_PLUGIN_DIR . 'includes/class-product-handler.php';
-        require_once PBR_PLUGIN_DIR . 'includes/class-post-handler.php';
+        require_once PBR_PLUGIN_DIR . 'class-prompts.php';
+        require_once PBR_PLUGIN_DIR . 'class-blackbox-api.php';
+        require_once PBR_PLUGIN_DIR . 'class-tavily-api.php';
+        require_once PBR_PLUGIN_DIR . 'class-html-parser.php';
+        require_once PBR_PLUGIN_DIR . 'class-custom-fields.php';
+        require_once PBR_PLUGIN_DIR . 'class-product-handler.php';
+        require_once PBR_PLUGIN_DIR . 'class-post-handler.php';
+        require_once PBR_PLUGIN_DIR . 'class-queue-manager.php';
         
         if (is_admin()) {
-            require_once PBR_PLUGIN_DIR . 'admin/class-admin-pages.php';
-            require_once PBR_PLUGIN_DIR . 'admin/class-ajax-handlers.php';
+            require_once PBR_PLUGIN_DIR . 'class-admin-pages.php';
+            require_once PBR_PLUGIN_DIR . 'class-ajax-handlers.php';
         }
     }
     
@@ -77,9 +78,12 @@ register_activation_hook(__FILE__, function() {
     $defaults = [
         'pbr_blackbox_api_key' => '',
         'pbr_tavily_api_key' => '',
-        'pbr_claude_model' => 'claude-sonnet-4-20250514',
+        'pbr_claude_model' => 'blackboxai/x-ai/grok-code-fast-1:free',
         'pbr_auto_publish' => 'draft',
         'pbr_enable_logging' => 'yes',
+        'pbr_enable_multi_agent' => 'no',
+        'pbr_primary_color' => '#29853a',
+        'pbr_use_theme_color' => 'no',
     ];
     
     foreach ($defaults as $key => $value) {
@@ -92,10 +96,10 @@ register_activation_hook(__FILE__, function() {
     
     // Create logs table
     global $wpdb;
-    $table_name = $wpdb->prefix . 'pbr_logs';
     $charset_collate = $wpdb->get_charset_collate();
     
-    $sql = "CREATE TABLE IF NOT EXISTS $table_name (
+    $logs_table = $wpdb->prefix . 'pbr_logs';
+    $sql_logs = "CREATE TABLE IF NOT EXISTS $logs_table (
         id bigint(20) NOT NULL AUTO_INCREMENT,
         action_type varchar(50) NOT NULL,
         product_name varchar(255) NOT NULL,
@@ -105,8 +109,29 @@ register_activation_hook(__FILE__, function() {
         PRIMARY KEY (id)
     ) $charset_collate;";
     
+    // Queue table
+    $queue_table = $wpdb->prefix . 'pbr_queue';
+    $sql_queue = "CREATE TABLE IF NOT EXISTS $queue_table (
+        id bigint(20) NOT NULL AUTO_INCREMENT,
+        item_type varchar(50) NOT NULL DEFAULT 'product',
+        title varchar(255) NOT NULL,
+        keywords text,
+        status varchar(20) NOT NULL DEFAULT 'pending',
+        priority int(11) NOT NULL DEFAULT 0,
+        result_id bigint(20) DEFAULT NULL,
+        error_message text,
+        created_at datetime DEFAULT CURRENT_TIMESTAMP,
+        processed_at datetime DEFAULT NULL,
+        PRIMARY KEY (id),
+        KEY item_type (item_type),
+        KEY status (status),
+        KEY priority (priority),
+        KEY created_at (created_at)
+    ) $charset_collate;";
+    
     require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
-    dbDelta($sql);
+    dbDelta($sql_logs);
+    dbDelta($sql_queue);
 });
 
 // Initialize Plugin

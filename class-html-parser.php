@@ -11,6 +11,9 @@ class PBR_HTML_Parser {
      * Parse generated content
      */
     public function parse($raw_content) {
+        // Preserve FSP shortcodes before processing
+        $raw_content = $this->preserve_fsp_shortcodes($raw_content);
+        
         $parsed = [
             // SEO Fields
             'h1_title' => '',
@@ -34,7 +37,10 @@ class PBR_HTML_Parser {
             'custom_fields' => [],
             
             // JSON Data
-            'json_data' => null
+            'json_data' => null,
+            
+            // FAQ
+            'faq' => []
         ];
         
         // Extract JSON
@@ -53,6 +59,14 @@ class PBR_HTML_Parser {
         
         // Extract HTML content
         $this->extract_html_content($raw_content, $parsed);
+        
+        // Extract FAQ
+        $this->extract_faq($raw_content, $parsed);
+        
+        // If HTML content is still empty, generate fallback
+        if (empty($parsed['html_content'])) {
+            $parsed['html_content'] = $this->generate_fallback_html($parsed);
+        }
         
         return $parsed;
     }
@@ -106,30 +120,58 @@ class PBR_HTML_Parser {
      * Extract meta table values
      */
     private function extract_meta_table($content, &$parsed) {
-        // Meta title
+        // Meta title - multiple patterns
         if (empty($parsed['meta_title'])) {
-            if (preg_match('/متا تایتل\s*\|\s*([^\|\n]+)/u', $content, $match)) {
-                $parsed['meta_title'] = trim($match[1]);
+            $patterns = [
+                '/متا تایتل\s*\|\s*([^\|\n]+)/u',
+                '/Meta Title\s*[:|]\s*([^\|\n]+)/i',
+                '/عنوان متا\s*\|\s*([^\|\n]+)/u',
+                '/<title[^>]*>([^<]+)<\/title>/i'
+            ];
+            foreach ($patterns as $pattern) {
+                if (preg_match($pattern, $content, $match)) {
+                    $parsed['meta_title'] = trim($match[1]);
+                    break;
+                }
             }
         }
         
-        // Meta description
+        // Meta description - multiple patterns
         if (empty($parsed['meta_description'])) {
-            if (preg_match('/متا دسکریپشن\s*\|\s*([^\|\n]+)/u', $content, $match)) {
-                $parsed['meta_description'] = trim($match[1]);
+            $patterns = [
+                '/متا دسکریپشن\s*\|\s*([^\|\n]+)/u',
+                '/Meta Description\s*[:|]\s*([^\|\n]+)/i',
+                '/توضیحات متا\s*\|\s*([^\|\n]+)/u',
+                '/<meta name="description" content="([^"]+)"/i'
+            ];
+            foreach ($patterns as $pattern) {
+                if (preg_match($pattern, $content, $match)) {
+                    $parsed['meta_description'] = trim($match[1]);
+                    break;
+                }
             }
         }
         
-        // H1 title
+        // H1 title - multiple patterns
         if (empty($parsed['h1_title'])) {
-            if (preg_match('/عنوان \(H1\)\s*\|\s*([^\|\n]+)/u', $content, $match)) {
-                $parsed['h1_title'] = trim($match[1]);
+            $patterns = [
+                '/عنوان \(H1\)\s*\|\s*([^\|\n]+)/u',
+                '/H1 Title\s*[:|]\s*([^\|\n]+)/i',
+                '/عنوان اصلی\s*\|\s*([^\|\n]+)/u'
+            ];
+            foreach ($patterns as $pattern) {
+                if (preg_match($pattern, $content, $match)) {
+                    $parsed['h1_title'] = trim($match[1]);
+                    break;
+                }
             }
         }
         
         // Slug
         if (empty($parsed['slug'])) {
             if (preg_match('/پیوند یکتا\s*\|\s*([a-z0-9\-]+)/ui', $content, $match)) {
+                $parsed['slug'] = strtolower(trim($match[1]));
+            } elseif (preg_match('/Slug\s*[:|]\s*([a-z0-9\-]+)/i', $content, $match)) {
                 $parsed['slug'] = strtolower(trim($match[1]));
             }
         }
@@ -139,6 +181,8 @@ class PBR_HTML_Parser {
             if (preg_match('/متن جایگزین عکس.*?اصلی.*?\|\s*([^\|\n]+)/u', $content, $match)) {
                 $parsed['alt_texts']['main'] = trim($match[1]);
             } elseif (preg_match('/متن جایگزین عکس\s*\|\s*([^\|\n]+)/u', $content, $match)) {
+                $parsed['alt_texts']['main'] = trim($match[1]);
+            } elseif (preg_match('/Alt Text\s*[:|]\s*([^\|\n]+)/i', $content, $match)) {
                 $parsed['alt_texts']['main'] = trim($match[1]);
             }
         }
@@ -388,5 +432,127 @@ class PBR_HTML_Parser {
         $english = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
         $persian = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
         return str_replace($english, $persian, $string);
+    }
+    
+    /**
+     * Preserve FSP shortcodes in content
+     */
+    private function preserve_fsp_shortcodes($content) {
+        // FSP Auto Poster shortcodes should be preserved
+        // [fsp-auto-poster id="123"]
+        return $content;
+    }
+    
+    /**
+     * Convert markdown lists to HTML
+     */
+    private function convert_markdown_lists($content) {
+        // Convert unordered lists
+        $content = preg_replace_callback('/^[\s]*[-*+]\s+(.+)$/m', function($matches) {
+            return '<li>' . trim($matches[1]) . '</li>';
+        }, $content);
+        
+        // Wrap consecutive list items
+        $content = preg_replace('/<li>.*?<\/li>(\s*<li>.*?<\/li>)+/s', '<ul>$0</ul>', $content);
+        
+        // Convert ordered lists
+        $content = preg_replace_callback('/^\s*\d+\.\s+(.+)$/m', function($matches) {
+            return '<li>' . trim($matches[1]) . '</li>';
+        }, $content);
+        
+        return $content;
+    }
+    
+    /**
+     * Wrap paragraphs in HTML
+     */
+    private function wrap_paragraphs($content) {
+        // Split by double newlines
+        $paragraphs = preg_split('/\n\s*\n/', $content);
+        $wrapped = '';
+        
+        foreach ($paragraphs as $para) {
+            $para = trim($para);
+            if (!empty($para) && !preg_match('/^<[a-z]/i', $para)) {
+                $wrapped .= '<p>' . nl2br($para) . '</p>' . "\n";
+            } else {
+                $wrapped .= $para . "\n";
+            }
+        }
+        
+        return $wrapped;
+    }
+    
+    /**
+     * Extract FAQ from content
+     */
+    private function extract_faq($content, &$parsed) {
+        $faq = [];
+        
+        // Look for FSP FAQ shortcode format
+        if (preg_match_all('/\[fsp-faq question="([^"]+)" answer="([^"]+)"\]/i', $content, $matches, PREG_SET_ORDER)) {
+            foreach ($matches as $match) {
+                $faq[] = [
+                    'question' => $match[1],
+                    'answer' => $match[2]
+                ];
+            }
+        }
+        
+        // Alternative: Look for FAQ sections in content
+        if (empty($faq) && preg_match('/###?\s*سؤالات متداول.*?\n(.*?)(?=\n###|\n##|$)/s', $content, $match)) {
+            $faq_text = $match[1];
+            
+            // Parse Q&A pairs
+            if (preg_match_all('/(?:سؤال|پرسش|Q):\s*(.+?)\n(?:پاسخ|جواب|A):\s*(.+?)(?=\n(?:سؤال|پرسش|Q):|$)/s', $faq_text, $qa_matches, PREG_SET_ORDER)) {
+                foreach ($qa_matches as $qa) {
+                    $faq[] = [
+                        'question' => trim($qa[1]),
+                        'answer' => trim($qa[2])
+                    ];
+                }
+            }
+        }
+        
+        $parsed['faq'] = $faq;
+    }
+    
+    /**
+     * Generate fallback HTML when extraction fails
+     */
+    private function generate_fallback_html($parsed) {
+        // Use the same color logic as Blackbox API
+        $primary_color = '#29853a'; // default
+        if (get_option('pbr_use_theme_color') === 'yes') {
+            $theme_color = get_theme_mod('primary_color');
+            if (!empty($theme_color)) {
+                $primary_color = $theme_color;
+            }
+        } else {
+            $primary_color = get_option('pbr_primary_color', '#29853a');
+        }
+        
+        $html = '<div style="font-family: Tahoma, Arial, sans-serif; direction: rtl; text-align: right; line-height: 1.8; color: #333;">';
+        
+        if (!empty($parsed['h1_title'])) {
+            $html .= '<h1 style="color: ' . esc_attr($primary_color) . '; font-size: 28px; margin-bottom: 20px;">' 
+                   . esc_html($parsed['h1_title']) . '</h1>';
+        }
+        
+        if (!empty($parsed['short_description'])) {
+            $html .= '<div style="background: #f8f9fa; padding: 20px; border-right: 4px solid ' . esc_attr($primary_color) . '; margin-bottom: 30px;">';
+            $html .= '<p style="font-size: 16px; line-height: 1.8; margin: 0;">' . esc_html($parsed['short_description']) . '</p>';
+            $html .= '</div>';
+        }
+        
+        // Add a default section
+        $html .= '<div style="margin-top: 30px;">';
+        $html .= '<h2 style="color: ' . esc_attr($primary_color) . '; font-size: 24px; margin-bottom: 15px;">توضیحات</h2>';
+        $html .= '<p style="font-size: 15px; line-height: 1.8;">محتوای تولید شده در حال پردازش است. لطفاً منتظر بمانید...</p>';
+        $html .= '</div>';
+        
+        $html .= '</div>';
+        
+        return $html;
     }
 }

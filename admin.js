@@ -51,6 +51,10 @@ var PBR = {
         
         // Prompt tabs
         $('.pbr-tab-btn').on('click', this.switchPromptTab);
+        
+        // Color picker sync
+        $('#primary_color').on('change', this.syncColorPicker);
+        $('#primary_color_hex').on('change', this.syncColorHex);
     },
     
     // ============================================
@@ -587,8 +591,326 @@ var PBR = {
         var div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
+    },
+    
+    syncColorPicker: function() {
+        var color = $(this).val();
+        $('#primary_color_hex').val(color);
+    },
+    
+    syncColorHex: function() {
+        var color = $(this).val();
+        if (/^#[0-9A-F]{6}$/i.test(color)) {
+            $('#primary_color').val(color);
+        }
     }
 };
 
+// ============================================
+// Queue Management
+// ============================================
+
+var PBR_Queue = {
+    
+    init: function() {
+        this.bindEvents();
+        this.autoRefreshStats();
+    },
+    
+    bindEvents: function() {
+        // Tab switching
+        $('.pbr-queue-tab').on('click', this.switchTab);
+        
+        // Form submissions
+        $('#pbr-single-queue-form').on('submit', this.handleSingleSubmit);
+        $('#pbr-bulk-queue-form').on('submit', this.handleBulkSubmit);
+        $('#pbr-csv-queue-form').on('submit', this.handleCsvSubmit);
+        
+        // Queue actions
+        $('#pbr-process-queue').on('click', this.handleProcessQueue);
+        $('#pbr-clear-completed').on('click', this.handleClearCompleted);
+        $('#pbr-status-filter').on('change', this.handleStatusFilter);
+        
+        // Item actions
+        $(document).on('click', '.pbr-retry-item', this.handleRetryItem);
+        $(document).on('click', '.pbr-delete-item', this.handleDeleteItem);
+        $(document).on('click', '.pbr-show-error', this.handleShowError);
+    },
+    
+    switchTab: function() {
+        var tab = $(this).data('tab');
+        
+        $('.pbr-queue-tab').removeClass('active');
+        $(this).addClass('active');
+        
+        $('.pbr-queue-tab-content').removeClass('active');
+        $('#' + tab + '-tab').addClass('active');
+    },
+    
+    handleSingleSubmit: function(e) {
+        e.preventDefault();
+        
+        var $form = $(this);
+        var $btn = $form.find('button[type="submit"]');
+        
+        $btn.prop('disabled', true).text('در حال افزودن...');
+        
+        $.ajax({
+            url: pbr_ajax.url,
+            type: 'POST',
+            data: $form.serialize() + '&action=pbr_add_to_queue&nonce=' + pbr_ajax.nonce,
+            success: function(response) {
+                if (response.success) {
+                    PBR.showNotice('success', response.data.message);
+                    $form[0].reset();
+                    setTimeout(function() { location.reload(); }, 1000);
+                } else {
+                    PBR.showNotice('error', response.data.message);
+                }
+            },
+            error: function() {
+                PBR.showNotice('error', 'خطا در ارتباط با سرور');
+            },
+            complete: function() {
+                $btn.prop('disabled', false).text('➕ افزودن به صف');
+            }
+        });
+    },
+    
+    handleBulkSubmit: function(e) {
+        e.preventDefault();
+        
+        var $form = $(this);
+        var $btn = $form.find('button[type="submit"]');
+        
+        $btn.prop('disabled', true).text('در حال افزودن...');
+        
+        $.ajax({
+            url: pbr_ajax.url,
+            type: 'POST',
+            data: $form.serialize() + '&action=pbr_add_bulk_to_queue&nonce=' + pbr_ajax.nonce,
+            success: function(response) {
+                if (response.success) {
+                    PBR.showNotice('success', response.data.message);
+                    $form[0].reset();
+                    setTimeout(function() { location.reload(); }, 1000);
+                } else {
+                    PBR.showNotice('error', response.data.message);
+                }
+            },
+            complete: function() {
+                $btn.prop('disabled', false).text('➕ افزودن دسته‌جمعی');
+            }
+        });
+    },
+    
+    handleCsvSubmit: function(e) {
+        e.preventDefault();
+        
+        var $form = $(this);
+        var $btn = $form.find('button[type="submit"]');
+        var formData = new FormData(this);
+        formData.append('action', 'pbr_upload_csv');
+        formData.append('nonce', pbr_ajax.nonce);
+        
+        $btn.prop('disabled', true).text('در حال بارگذاری...');
+        
+        $.ajax({
+            url: pbr_ajax.url,
+            type: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            success: function(response) {
+                if (response.success) {
+                    PBR.showNotice('success', response.data.message);
+                    $form[0].reset();
+                    setTimeout(function() { location.reload(); }, 1000);
+                } else {
+                    PBR.showNotice('error', response.data.message);
+                }
+            },
+            complete: function() {
+                $btn.prop('disabled', false).text('📤 بارگذاری CSV');
+            }
+        });
+    },
+    
+    handleProcessQueue: function() {
+        var $btn = $(this);
+        var batchSize = 5; // Process up to 5 items
+        
+        $btn.prop('disabled', true);
+        $('#pbr-queue-progress-modal').fadeIn(200);
+        $('#pbr-current-item').text('در حال پردازش موارد صف...');
+        $('#pbr-process-results').html('');
+        $('.pbr-progress-fill').css('width', '0%');
+        $('#pbr-progress-stats').text('0 از ' + batchSize + ' مورد پردازش شد');
+        
+        PBR_Queue.processItems(0, batchSize);
+    },
+    
+    processItems: function(processed, batchSize) {
+        $.ajax({
+            url: pbr_ajax.url,
+            type: 'POST',
+            data: {
+                action: 'pbr_process_queue',
+                nonce: pbr_ajax.nonce,
+                count: 1  // Process one item at a time for better progress tracking
+            },
+            timeout: 300000,
+            success: function(response) {
+                if (response.success && response.data.results.length > 0) {
+                    var result = response.data.results[0];
+                    processed++;
+                    
+                    var status = result.success ? '✅' : '❌';
+                    var msg = result.success 
+                        ? status + ' ' + result.title + ' - موفق'
+                        : status + ' ' + result.title + ' - خطا: ' + result.error;
+                    
+                    $('#pbr-process-results').append('<p>' + msg + '</p>');
+                    
+                    var progress = (processed / batchSize) * 100;
+                    $('.pbr-progress-fill').css('width', progress + '%');
+                    $('#pbr-progress-stats').text(processed + ' از ' + batchSize + ' مورد پردازش شد');
+                    
+                    if (processed < batchSize) {
+                        PBR_Queue.processItems(processed, batchSize);
+                    } else {
+                        PBR_Queue.finishProcessing();
+                    }
+                } else {
+                    // No more items to process
+                    PBR_Queue.finishProcessing();
+                }
+            },
+            error: function() {
+                $('#pbr-process-results').append('<p>❌ خطا در پردازش</p>');
+                PBR_Queue.finishProcessing();
+            }
+        });
+    },
+    
+    finishProcessing: function() {
+        setTimeout(function() {
+            $('#pbr-queue-progress-modal').fadeOut(200);
+            location.reload();
+        }, 2000);
+    },
+    
+    handleClearCompleted: function() {
+        if (!confirm('آیا مطمئن هستید؟')) return;
+        
+        $.ajax({
+            url: pbr_ajax.url,
+            type: 'POST',
+            data: {
+                action: 'pbr_clear_completed',
+                nonce: pbr_ajax.nonce
+            },
+            success: function(response) {
+                if (response.success) {
+                    PBR.showNotice('success', response.data.message);
+                    setTimeout(function() { location.reload(); }, 1000);
+                }
+            }
+        });
+    },
+    
+    handleStatusFilter: function() {
+        var status = $(this).val();
+        var url = new URL(window.location);
+        if (status) {
+            url.searchParams.set('status', status);
+        } else {
+            url.searchParams.delete('status');
+        }
+        window.location = url;
+    },
+    
+    handleRetryItem: function() {
+        var id = $(this).data('id');
+        
+        $.ajax({
+            url: pbr_ajax.url,
+            type: 'POST',
+            data: {
+                action: 'pbr_retry_queue_item',
+                nonce: pbr_ajax.nonce,
+                id: id
+            },
+            success: function(response) {
+                if (response.success) {
+                    PBR.showNotice('success', response.data.message);
+                    setTimeout(function() { location.reload(); }, 1000);
+                }
+            }
+        });
+    },
+    
+    handleDeleteItem: function() {
+        if (!confirm('آیا مطمئن هستید؟')) return;
+        
+        var id = $(this).data('id');
+        
+        $.ajax({
+            url: pbr_ajax.url,
+            type: 'POST',
+            data: {
+                action: 'pbr_delete_queue_item',
+                nonce: pbr_ajax.nonce,
+                id: id
+            },
+            success: function(response) {
+                if (response.success) {
+                    $('tr[data-item-id="' + id + '"]').fadeOut();
+                    PBR.showNotice('success', response.data.message);
+                }
+            }
+        });
+    },
+    
+    handleShowError: function() {
+        var error = $(this).data('error');
+        $('#pbr-error-content').html('<pre>' + error + '</pre>');
+        $('#pbr-error-modal').fadeIn(200);
+    },
+    
+    autoRefreshStats: function() {
+        if ($('.pbr-queue-stats').length === 0) return;
+        
+        setInterval(function() {
+            $.ajax({
+                url: pbr_ajax.url,
+                type: 'POST',
+                data: {
+                    action: 'pbr_get_queue_stats',
+                    nonce: pbr_ajax.nonce
+                },
+                success: function(response) {
+                    if (response.success) {
+                        var stats = response.data;
+                        $('.pbr-stat-total .pbr-stat-value').text(stats.total || 0);
+                        $('.pbr-stat-pending .pbr-stat-value').text(stats.pending || 0);
+                        $('.pbr-stat-processing .pbr-stat-value').text(stats.processing || 0);
+                        $('.pbr-stat-completed .pbr-stat-value').text(stats.completed || 0);
+                        $('.pbr-stat-failed .pbr-stat-value').text(stats.failed || 0);
+                    }
+                }
+            });
+        }, 10000); // Refresh every 10 seconds
+    }
+};
+
+// Initialize queue management if on queue page
+$(document).ready(function() {
+    if ($('.pbr-queue-stats').length > 0) {
+        PBR_Queue.init();
+    }
+});
+
 window.PBR = PBR;
+window.PBR_Queue = PBR_Queue;
 })(jQuery);
