@@ -453,36 +453,77 @@ class PBR_HTML_Parser {
     private function generate_fallback_html($parsed, $raw_content = '') {
         $primary_color = get_option('pbr_primary_color', '#29853a');
         
-        $html = '<div style="font-family: Tahoma, Arial, sans-serif; direction: rtl; text-align: right; padding: 20px;">';
+        $html = '<div style="font-family: Tahoma, Arial, sans-serif; direction: rtl; text-align: right; padding: 20px; line-height: 1.8;">';
+        
+        $has_content = false;
         
         // Add H1 title
         if (!empty($parsed['h1_title'])) {
-            $html .= '<h1 style="color: ' . esc_attr($primary_color) . ';">' . esc_html($parsed['h1_title']) . '</h1>';
+            $html .= '<h1 style="color: ' . esc_attr($primary_color) . '; text-align: center; margin-bottom: 20px;">' . esc_html($parsed['h1_title']) . '</h1>';
+            $has_content = true;
         }
         
         // Add short description
         if (!empty($parsed['short_description'])) {
-            $html .= '<p style="font-size: 16px; line-height: 1.8;">' . esc_html($parsed['short_description']) . '</p>';
+            $html .= '<div style="background: #f5f5f5; padding: 15px; border-radius: 8px; margin: 20px 0; border-right: 4px solid ' . esc_attr($primary_color) . ';">';
+            $html .= '<p style="font-size: 16px; margin: 0;">' . nl2br(esc_html($parsed['short_description'])) . '</p>';
+            $html .= '</div>';
+            $has_content = true;
         }
         
         // Add custom fields if available
         if (!empty($parsed['custom_fields']) && is_array($parsed['custom_fields'])) {
+            $html .= '<h2 style="color: ' . esc_attr($primary_color) . '; border-bottom: 2px solid ' . esc_attr($primary_color) . '; padding-bottom: 10px; margin-top: 30px;">مشخصات فنی</h2>';
             $html .= '<table style="width: 100%; border-collapse: collapse; margin: 20px 0;">';
             $html .= '<thead><tr style="background-color: ' . esc_attr($primary_color) . '; color: white;">';
-            $html .= '<th style="padding: 10px; border: 1px solid #ddd;">مشخصه</th>';
-            $html .= '<th style="padding: 10px; border: 1px solid #ddd;">مقدار</th>';
+            $html .= '<th style="padding: 12px; border: 1px solid #ddd; text-align: right;">مشخصه</th>';
+            $html .= '<th style="padding: 12px; border: 1px solid #ddd; text-align: right;">مقدار</th>';
             $html .= '</tr></thead><tbody>';
             
             foreach ($parsed['custom_fields'] as $key => $value) {
                 if (!empty($value) && is_string($value)) {
                     $html .= '<tr>';
-                    $html .= '<td style="padding: 10px; border: 1px solid #ddd;">' . esc_html($key) . '</td>';
+                    $html .= '<td style="padding: 10px; border: 1px solid #ddd; background: #f9f9f9;">' . esc_html($key) . '</td>';
                     $html .= '<td style="padding: 10px; border: 1px solid #ddd;">' . esc_html($value) . '</td>';
                     $html .= '</tr>';
+                    $has_content = true;
                 }
             }
             
             $html .= '</tbody></table>';
+        }
+        
+        // If no structured content, try to extract plain text from raw content
+        if (!$has_content && !empty($raw_content)) {
+            // Remove HTML/markdown syntax
+            $clean_content = strip_tags($raw_content);
+            $clean_content = preg_replace('/```[a-z]*\s*[\s\S]*?```/m', '', $clean_content);
+            $clean_content = preg_replace('/\{[\s\S]*?\}/', '', $clean_content);
+            $clean_content = preg_replace('/\|[\s\S]*?\|/', '', $clean_content);
+            $clean_content = trim($clean_content);
+            
+            if (!empty($clean_content) && strlen($clean_content) > 50) {
+                // Split into paragraphs
+                $paragraphs = array_filter(explode("\n", $clean_content), function($p) {
+                    return strlen(trim($p)) > 20;
+                });
+                
+                if (!empty($paragraphs)) {
+                    $html .= '<div style="background: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">';
+                    foreach (array_slice($paragraphs, 0, 5) as $para) {
+                        $html .= '<p style="margin-bottom: 15px;">' . esc_html(trim($para)) . '</p>';
+                    }
+                    $html .= '</div>';
+                    $has_content = true;
+                }
+            }
+        }
+        
+        // Add a message if still no content
+        if (!$has_content) {
+            $html .= '<div style="background: #fff3cd; padding: 20px; border-radius: 8px; border: 1px solid #ffc107;">';
+            $html .= '<p style="margin: 0; color: #856404;"><strong>⚠️ توجه:</strong> محتوای کامل در حال آماده‌سازی است. لطفاً بعداً بررسی کنید.</p>';
+            $html .= '</div>';
         }
         
         $html .= '</div>';
