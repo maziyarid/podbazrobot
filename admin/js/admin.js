@@ -51,6 +51,17 @@ var PBR = {
         
         // Prompt tabs
         $('.pbr-tab-btn').on('click', this.switchPromptTab);
+        
+        // Color picker synchronization
+        $('#primary_color').on('input', function() {
+            $('#primary_color_hex').val($(this).val());
+        });
+        $('#primary_color_hex').on('input', function() {
+            var color = $(this).val();
+            if (/^#[0-9A-Fa-f]{6}$/.test(color)) {
+                $('#primary_color').val(color);
+            }
+        });
     },
     
     // ============================================

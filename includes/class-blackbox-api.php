@@ -8,13 +8,26 @@ class PBR_Blackbox_API {
     
     private $api_key;
     private $model;
-    private $base_url = 'https://api.blackbox.ai/api/chat';
+    private $base_url = 'https://api.blackbox.ai/v1/chat/completions';
     private $timeout = 300;
 
     public function __construct() {
-        $this->api_key = get_option('pbr_blackbox_api_key', '');
-        $this->model = get_option('pbr_claude_model', 'claude-sonnet-4-20250514');
+        $this->api_key = trim(get_option('pbr_blackbox_api_key', ''));
+        $this->model = get_option('pbr_claude_model', 'blackboxai/x-ai/grok-code-fast-1:free');
+    }
+    
+    /**
+     * Get primary color for content generation
+     */
+    private function get_primary_color() {
+        if (get_option('pbr_use_theme_color') === 'yes') {
+            $theme_color = get_theme_mod('primary_color');
+            if (!empty($theme_color)) {
+                return $theme_color;
+            }
         }
+        return get_option('pbr_primary_color', '#29853a');
+    }
 
     /**
      * Generate content using Blackbox API
@@ -24,10 +37,21 @@ class PBR_Blackbox_API {
             throw new Exception('کلید API بلک‌باکس تنظیم نشده است.');
         }
         
+        // Adjust max_tokens for free models
+        if (strpos($this->model, ':free') !== false) {
+            $max_tokens = min($max_tokens, 4000); // Free models typically have lower limits
+        }
+        
+        $primary_color = $this->get_primary_color();
         $full_message = $prompt . "\n\n---\n\n" . $user_message;
+        $full_message .= "\n\nرنگ اصلی سایت: " . $primary_color;
+        
+        // Log the request for debugging
+        $this->log_api_request($full_message, $max_tokens);
         
         $response = wp_remote_post($this->base_url, [
             'timeout' => $this->timeout,
+            'sslverify' => true,
             'headers' => [
                 'Authorization' => 'Bearer ' . $this->api_key,
                 'Content-Type' => 'application/json',
@@ -41,12 +65,14 @@ class PBR_Blackbox_API {
                 ],
                 'model' => $this->model,
                 'max_tokens' => $max_tokens,
-                'temperature' => 0.7
+                'temperature' => 0.7,
+                'top_p' => 0.9,
+                'stream' => false
             ])
         ]);
         
         return $this->handle_response($response);
-        }
+    }
 
     /**
      * Generate HTML content for product
@@ -105,16 +131,22 @@ class PBR_Blackbox_API {
      */
     private function handle_response($response) {
         if (is_wp_error($response)) {
-            throw new Exception('خطای اتصال: ' . $response->get_error_message());
+            $error_msg = 'خطای اتصال: ' . $response->get_error_message();
+            $this->log_api_error($error_msg);
+            throw new Exception($error_msg);
         }
         
         $status_code = wp_remote_retrieve_response_code($response);
         $body = json_decode(wp_remote_retrieve_body($response), true);
         
+        // Log raw response for debugging
+        $this->log_api_response($status_code, $body);
+        
         if ($status_code !== 200) {
             $error_msg = isset($body['error']['message']) 
                 ? $body['error']['message'] 
                 : "خطای HTTP {$status_code}";
+            $this->log_api_error($error_msg, $body);
             throw new Exception("خطای API: {$error_msg}");
         }
         
@@ -131,10 +163,88 @@ class PBR_Blackbox_API {
         }
         
         if (empty($content)) {
-            throw new Exception('پاسخ خالی از API دریافت شد.');
+            $this->log_api_error('پاسخ خالی از API', $body);
+            throw new Exception('پاسخ خالی از API دریافت شد. ممکن است مدل فعلی محدودیت داشته باشد.');
         }
         
+        // Log content length for monitoring
+        $this->log_api_success(strlen($content));
+        
         return $content;
+    }
+    
+    /**
+     * Log API request for debugging
+     */
+    private function log_api_request($message, $max_tokens) {
+        if (get_option('pbr_enable_logging') !== 'yes') {
+            return;
+        }
+        
+        $log_data = [
+            'type' => 'api_request',
+            'model' => $this->model,
+            'message_length' => strlen($message),
+            'max_tokens' => $max_tokens,
+            'timestamp' => current_time('mysql')
+        ];
+        
+        update_option('pbr_last_api_request', $log_data, false);
+    }
+    
+    /**
+     * Log API response for debugging
+     */
+    private function log_api_response($status_code, $body) {
+        if (get_option('pbr_enable_logging') !== 'yes') {
+            return;
+        }
+        
+        $log_data = [
+            'type' => 'api_response',
+            'status_code' => $status_code,
+            'has_choices' => isset($body['choices']),
+            'response_keys' => is_array($body) ? array_keys($body) : [],
+            'timestamp' => current_time('mysql')
+        ];
+        
+        update_option('pbr_last_api_response', $log_data, false);
+    }
+    
+    /**
+     * Log API success
+     */
+    private function log_api_success($content_length) {
+        if (get_option('pbr_enable_logging') !== 'yes') {
+            return;
+        }
+        
+        $log_data = [
+            'type' => 'api_success',
+            'content_length' => $content_length,
+            'timestamp' => current_time('mysql')
+        ];
+        
+        update_option('pbr_last_api_success', $log_data, false);
+    }
+    
+    /**
+     * Log API error
+     */
+    private function log_api_error($error_msg, $body = null) {
+        if (get_option('pbr_enable_logging') !== 'yes') {
+            return;
+        }
+        
+        $log_data = [
+            'type' => 'api_error',
+            'error' => $error_msg,
+            'body' => $body,
+            'model' => $this->model,
+            'timestamp' => current_time('mysql')
+        ];
+        
+        update_option('pbr_last_api_error', $log_data, false);
     }
 
     /**

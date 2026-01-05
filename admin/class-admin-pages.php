@@ -56,6 +56,15 @@ class PBR_Admin_Pages {
         
         add_submenu_page(
             'podbaz-robot',
+            'مدیریت صف',
+            '📋 صف تولید',
+            'manage_options',
+            'podbaz-queue',
+            [$this, 'render_queue_page']
+        );
+        
+        add_submenu_page(
+            'podbaz-robot',
             'مدیریت پرامپت‌ها',
             '📋 پرامپت‌ها',
             'manage_options',
@@ -130,6 +139,13 @@ class PBR_Admin_Pages {
      */
     public function render_update_page() {
         include PBR_PLUGIN_DIR . 'admin/views/update-page.php';
+    }
+    
+    /**
+     * Render queue page
+     */
+    public function render_queue_page() {
+        include PBR_PLUGIN_DIR . 'admin/views/queue-page.php';
     }
 
     /**

@@ -23,25 +23,54 @@ class PBR_Product_Handler {
         // Parse content
         $parsed = $this->parser->parse($raw_content);
         
-        // Validate HTML content
-        if (empty($parsed['html_content'])) {
-            throw new Exception('محتوای HTML یافت نشد.');
+        // Log parsed data for debugging
+        if (get_option('pbr_enable_logging') === 'yes') {
+            update_option('pbr_last_parsed_data', [
+                'has_html' => !empty($parsed['html_content']),
+                'html_length' => strlen($parsed['html_content'] ?? ''),
+                'has_h1' => !empty($parsed['h1_title']),
+                'h1_title' => $parsed['h1_title'] ?? '',
+                'has_short_desc' => !empty($parsed['short_description']),
+                'custom_fields_count' => count($parsed['custom_fields'] ?? []),
+                'raw_content_length' => strlen($raw_content),
+                'timestamp' => current_time('mysql')
+            ], false);
         }
         
-        // Get title
+        // Validate HTML content
+        if (empty($parsed['html_content'])) {
+            throw new Exception('محتوای HTML یافت نشد. لطفاً لاگ‌ها را بررسی کنید: get_option(\'pbr_last_parsed_data\')');
+        }
+        
+        // Get title - be more flexible
         if (empty($parsed['h1_title'])) {
-            throw new Exception('عنوان محصول یافت نشد.');
+            // Try to extract from HTML
+            if (preg_match('/<h1[^>]*>([^<]+)/i', $parsed['html_content'], $h1_match)) {
+                $parsed['h1_title'] = strip_tags($h1_match[1]);
+            }
+        }
+        
+        // Still no title? Use a default with timestamp
+        if (empty($parsed['h1_title'])) {
+            $parsed['h1_title'] = 'محصول جدید - ' . current_time('Y-m-d H:i');
+            $this->log_action('create_product_warning', $parsed['h1_title'], 'warning', 'عنوان محصول خودکار تنظیم شد');
         }
         
         // Create product
         $product = new WC_Product_Simple();
         
         $product->set_name($parsed['h1_title']);
+        
+        // Generate slug if empty
+        if (empty($parsed['slug'])) {
+            $parsed['slug'] = sanitize_title($parsed['h1_title']);
+        }
         $product->set_slug($parsed['slug']);
+        
         $product->set_status($status);
         $product->set_catalog_visibility('visible');
         $product->set_description($parsed['html_content']);
-        $product->set_short_description($parsed['short_description']);
+        $product->set_short_description($parsed['short_description'] ?? '');
         
         // Save product
         $product_id = $product->save();
@@ -54,7 +83,9 @@ class PBR_Product_Handler {
         $this->set_seo_meta($product_id, $parsed);
         
         // Set custom fields
-        PBR_Custom_Fields::save_product_fields($product_id, $parsed['custom_fields']);
+        if (!empty($parsed['custom_fields'])) {
+            PBR_Custom_Fields::save_product_fields($product_id, $parsed['custom_fields']);
+        }
         
         // Store additional data
         $this->store_additional_data($product_id, $parsed, $raw_content);
@@ -69,7 +100,7 @@ class PBR_Product_Handler {
             'edit_link' => admin_url("post.php?post={$product_id}&action=edit"),
             'view_link' => get_permalink($product_id),
             'html_length' => strlen($parsed['html_content']),
-            'custom_fields_count' => count($parsed['custom_fields'])
+            'custom_fields_count' => count($parsed['custom_fields'] ?? [])
         ];
     }
 

@@ -40,6 +40,9 @@ class PBR_HTML_Parser {
         // Extract JSON
         $parsed['json_data'] = $this->extract_json($raw_content);
         
+        // Remove JSON from content BEFORE further processing
+        $raw_content = $this->remove_json_block($raw_content);
+        
         // Populate from JSON
         if ($parsed['json_data']) {
             $this->populate_from_json($parsed);
@@ -212,6 +215,16 @@ class PBR_HTML_Parser {
             if (preg_match('/### ۳\. کد HTML.*?\n\n(<div[\s\S]*<\/div>)/us', $content, $match)) {
                 $parsed['html_content'] = trim($match[1]);
             }
+        }
+        
+        // Apply JSON removal to extracted HTML
+        if (!empty($parsed['html_content'])) {
+            $parsed['html_content'] = $this->remove_json_block($parsed['html_content']);
+        }
+        
+        // Generate fallback HTML if extraction failed
+        if (empty($parsed['html_content'])) {
+            $parsed['html_content'] = $this->generate_fallback_html($parsed, $content);
         }
         
         // Validate and clean HTML
@@ -388,5 +401,133 @@ class PBR_HTML_Parser {
         $english = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
         $persian = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
         return str_replace($english, $persian, $string);
+    }
+    
+    /**
+     * Remove JSON blocks from content
+     */
+    private function remove_json_block($content) {
+        // Remove fenced JSON code blocks (```json ... ```)
+        $content = preg_replace('/```json\s*[\s\S]*?\s*```/m', '', $content);
+        
+        // Remove JSON after HTML closing tag (most specific pattern first)
+        $content = preg_replace('/<\/div>\s*\n*\s*\{[\s\S]*\}\s*$/u', '</div>', $content);
+        
+        // Remove inline JSON objects at the end of content
+        // This pattern matches a complete JSON object at the end, using balanced braces
+        $content = $this->remove_trailing_json_object($content);
+        
+        return trim($content);
+    }
+    
+    /**
+     * Remove trailing JSON object from content
+     */
+    private function remove_trailing_json_object($content) {
+        // Limit search scope to last 5000 characters to improve performance
+        $search_len = min(5000, strlen($content));
+        $search_content = substr($content, -$search_len);
+        
+        // Find the last opening brace followed by JSON-like content
+        // Look for patterns that indicate a JSON object (key-value pairs with quotes)
+        // Using a more specific pattern with limited scope
+        if (preg_match('/\s*\{\s*"[^"]+"\s*:[^}]{0,4000}\}?\s*$/u', $search_content, $match, PREG_OFFSET_CAPTURE)) {
+            $json_start_in_search = $match[0][1];
+            $json_start = strlen($content) - $search_len + $json_start_in_search;
+            $possible_json = substr($content, $json_start);
+            
+            // Try to decode it to verify it's valid JSON
+            // Only remove if it decodes successfully (ensuring proper structure)
+            if (json_decode($possible_json) !== null && json_last_error() === JSON_ERROR_NONE) {
+                // It's valid JSON, remove it
+                $content = substr($content, 0, $json_start);
+            }
+        }
+        
+        return $content;
+    }
+    
+    /**
+     * Generate fallback HTML from available data
+     */
+    private function generate_fallback_html($parsed, $raw_content = '') {
+        $primary_color = get_option('pbr_primary_color', '#29853a');
+        
+        $html = '<div style="font-family: Tahoma, Arial, sans-serif; direction: rtl; text-align: right; padding: 20px; line-height: 1.8;">';
+        
+        $has_content = false;
+        
+        // Add H1 title
+        if (!empty($parsed['h1_title'])) {
+            $html .= '<h1 style="color: ' . esc_attr($primary_color) . '; text-align: center; margin-bottom: 20px;">' . esc_html($parsed['h1_title']) . '</h1>';
+            $has_content = true;
+        }
+        
+        // Add short description
+        if (!empty($parsed['short_description'])) {
+            $html .= '<div style="background: #f5f5f5; padding: 15px; border-radius: 8px; margin: 20px 0; border-right: 4px solid ' . esc_attr($primary_color) . ';">';
+            $html .= '<p style="font-size: 16px; margin: 0;">' . nl2br(esc_html($parsed['short_description'])) . '</p>';
+            $html .= '</div>';
+            $has_content = true;
+        }
+        
+        // Add custom fields if available
+        if (!empty($parsed['custom_fields']) && is_array($parsed['custom_fields'])) {
+            $html .= '<h2 style="color: ' . esc_attr($primary_color) . '; border-bottom: 2px solid ' . esc_attr($primary_color) . '; padding-bottom: 10px; margin-top: 30px;">مشخصات فنی</h2>';
+            $html .= '<table style="width: 100%; border-collapse: collapse; margin: 20px 0;">';
+            $html .= '<thead><tr style="background-color: ' . esc_attr($primary_color) . '; color: white;">';
+            $html .= '<th style="padding: 12px; border: 1px solid #ddd; text-align: right;">مشخصه</th>';
+            $html .= '<th style="padding: 12px; border: 1px solid #ddd; text-align: right;">مقدار</th>';
+            $html .= '</tr></thead><tbody>';
+            
+            foreach ($parsed['custom_fields'] as $key => $value) {
+                if (!empty($value) && is_string($value)) {
+                    $html .= '<tr>';
+                    $html .= '<td style="padding: 10px; border: 1px solid #ddd; background: #f9f9f9;">' . esc_html($key) . '</td>';
+                    $html .= '<td style="padding: 10px; border: 1px solid #ddd;">' . esc_html($value) . '</td>';
+                    $html .= '</tr>';
+                    $has_content = true;
+                }
+            }
+            
+            $html .= '</tbody></table>';
+        }
+        
+        // If no structured content, try to extract plain text from raw content
+        if (!$has_content && !empty($raw_content)) {
+            // Remove HTML/markdown syntax
+            $clean_content = strip_tags($raw_content);
+            $clean_content = preg_replace('/```[a-z]*\s*[\s\S]*?```/m', '', $clean_content);
+            $clean_content = preg_replace('/\{[\s\S]*?\}/', '', $clean_content);
+            $clean_content = preg_replace('/\|[\s\S]*?\|/', '', $clean_content);
+            $clean_content = trim($clean_content);
+            
+            if (!empty($clean_content) && strlen($clean_content) > 50) {
+                // Split into paragraphs
+                $paragraphs = array_filter(explode("\n", $clean_content), function($p) {
+                    return strlen(trim($p)) > 20;
+                });
+                
+                if (!empty($paragraphs)) {
+                    $html .= '<div style="background: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">';
+                    foreach (array_slice($paragraphs, 0, 5) as $para) {
+                        $html .= '<p style="margin-bottom: 15px;">' . esc_html(trim($para)) . '</p>';
+                    }
+                    $html .= '</div>';
+                    $has_content = true;
+                }
+            }
+        }
+        
+        // Add a message if still no content
+        if (!$has_content) {
+            $html .= '<div style="background: #fff3cd; padding: 20px; border-radius: 8px; border: 1px solid #ffc107;">';
+            $html .= '<p style="margin: 0; color: #856404;"><strong>⚠️ توجه:</strong> محتوای کامل در حال آماده‌سازی است. لطفاً بعداً بررسی کنید.</p>';
+            $html .= '</div>';
+        }
+        
+        $html .= '</div>';
+        
+        return $html;
     }
 }
