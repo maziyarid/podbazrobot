@@ -32,7 +32,7 @@ class PBR_Blackbox_API {
     /**
      * Generate content using Blackbox API
      */
-    public function generate($prompt, $user_message, $max_tokens = 16000) {
+    public function generate($prompt, $user_message, $max_tokens = 50000) {
         if (empty($this->api_key)) {
             throw new Exception('کلید API بلک‌باکس تنظیم نشده است.');
         }
@@ -45,6 +45,7 @@ class PBR_Blackbox_API {
         $primary_color = $this->get_primary_color();
         $full_message = $prompt . "\n\n---\n\n" . $user_message;
         $full_message .= "\n\nرنگ اصلی سایت: " . $primary_color;
+        $full_message .= "\n\n⚠️⚠️⚠️ بسیار مهم: تمام بخشها را کامل بنویس. اگر به حد توکن نزدیک شدی، خلاصهتر بنویس ولی همه بخشها را کامل کن.";
         
         // Log the request for debugging
         $this->log_api_request($full_message, $max_tokens);

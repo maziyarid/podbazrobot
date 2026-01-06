@@ -7,6 +7,49 @@ if (!defined('ABSPATH')) exit;
 
 class PBR_HTML_Parser {
     
+    // Constants for content limits
+    const SHORT_DESC_MAX_LENGTH = 300;
+    
+    /**
+     * Clean extracted text from markdown artifacts
+     */
+    private function clean_extracted_text($text) {
+        // Remove code block markers
+        $text = preg_replace('/^```\s*/', '', $text);
+        $text = preg_replace('/\s*```$/', '', $text);
+        
+        // Remove separator lines
+        $text = preg_replace('/^-+\s*/', '', $text);
+        $text = preg_replace('/\s*-+$/', '', $text);
+        
+        // Remove markdown bold
+        $text = preg_replace('/\*\*(.+?)\*\*/', '$1', $text);
+        
+        $text = trim($text);
+        
+        // Return empty if just separators
+        if ($text === '---' || $text === '```' || empty($text)) {
+            return '';
+        }
+        
+        return $text;
+    }
+    
+    /**
+     * Truncate description to maximum length
+     */
+    private function truncate_description($text, $max_length = null) {
+        if ($max_length === null) {
+            $max_length = self::SHORT_DESC_MAX_LENGTH;
+        }
+        
+        if (mb_strlen($text, 'UTF-8') > $max_length) {
+            return mb_substr($text, 0, $max_length - 3, 'UTF-8') . '...';
+        }
+        
+        return $text;
+    }
+    
     /**
      * Parse generated content
      */
@@ -112,50 +155,79 @@ class PBR_HTML_Parser {
         // Meta title
         if (empty($parsed['meta_title'])) {
             if (preg_match('/متا تایتل\s*\|\s*([^\|\n]+)/u', $content, $match)) {
-                $parsed['meta_title'] = trim($match[1]);
+                $parsed['meta_title'] = $this->clean_extracted_text(trim($match[1]));
             }
         }
         
         // Meta description
         if (empty($parsed['meta_description'])) {
             if (preg_match('/متا دسکریپشن\s*\|\s*([^\|\n]+)/u', $content, $match)) {
-                $parsed['meta_description'] = trim($match[1]);
+                $parsed['meta_description'] = $this->clean_extracted_text(trim($match[1]));
             }
         }
         
-        // H1 title
+        // H1 title - Multiple extraction patterns
         if (empty($parsed['h1_title'])) {
+            // Pattern 1: From table
             if (preg_match('/عنوان \(H1\)\s*\|\s*([^\|\n]+)/u', $content, $match)) {
-                $parsed['h1_title'] = trim($match[1]);
+                $parsed['h1_title'] = $this->clean_extracted_text(trim($match[1]));
+            }
+        }
+        
+        // Pattern 2: With markdown bold formatting
+        if (empty($parsed['h1_title'])) {
+            if (preg_match('/\*\*بخش\s*[۱1].*?\*\*\s*```\s*\n?(.+?)\n?```/us', $content, $match)) {
+                $parsed['h1_title'] = $this->clean_extracted_text(trim($match[1]));
+            }
+        }
+        
+        // Pattern 3: Standard markdown heading
+        if (empty($parsed['h1_title'])) {
+            if (preg_match('/##?\s*بخش\s*[۱1][:\s].*?(?:عنوان|H1).*?\n+([^\n]+?)(?:\n|$)/u', $content, $match)) {
+                $parsed['h1_title'] = $this->clean_extracted_text(trim($match[1]));
+            }
+        }
+        
+        // Pattern 4: After label
+        if (empty($parsed['h1_title'])) {
+            if (preg_match('/عنوان محصول\s*\(H1\)\s*\n+([^\n]+)/u', $content, $match)) {
+                $parsed['h1_title'] = $this->clean_extracted_text(trim($match[1]));
+            }
+        }
+        
+        // Pattern 5: Simple markdown heading at start
+        if (empty($parsed['h1_title'])) {
+            if (preg_match('/^#\s+([^\n]+)$/m', $content, $match)) {
+                $parsed['h1_title'] = $this->clean_extracted_text(trim($match[1]));
             }
         }
         
         // Slug
         if (empty($parsed['slug'])) {
             if (preg_match('/پیوند یکتا\s*\|\s*([a-z0-9\-]+)/ui', $content, $match)) {
-                $parsed['slug'] = strtolower(trim($match[1]));
+                $parsed['slug'] = strtolower($this->clean_extracted_text(trim($match[1])));
             }
         }
         
         // Alt texts
         if (empty($parsed['alt_texts']['main'])) {
             if (preg_match('/متن جایگزین عکس.*?اصلی.*?\|\s*([^\|\n]+)/u', $content, $match)) {
-                $parsed['alt_texts']['main'] = trim($match[1]);
+                $parsed['alt_texts']['main'] = $this->clean_extracted_text(trim($match[1]));
             } elseif (preg_match('/متن جایگزین عکس\s*\|\s*([^\|\n]+)/u', $content, $match)) {
-                $parsed['alt_texts']['main'] = trim($match[1]);
+                $parsed['alt_texts']['main'] = $this->clean_extracted_text(trim($match[1]));
             }
         }
         
         if (preg_match('/متن جایگزین عکس رنگ.*?\|\s*([^\|\n]+)/u', $content, $match)) {
-            $parsed['alt_texts']['colors'] = trim($match[1]);
+            $parsed['alt_texts']['colors'] = $this->clean_extracted_text(trim($match[1]));
         }
         
         if (preg_match('/متن جایگزین عکس جعبه\s*\|\s*([^\|\n]+)/u', $content, $match)) {
-            $parsed['alt_texts']['box'] = trim($match[1]);
+            $parsed['alt_texts']['box'] = $this->clean_extracted_text(trim($match[1]));
         }
         
         if (preg_match('/متن جایگزین عکس پاد\s*\|\s*([^\|\n]+)/u', $content, $match)) {
-            $parsed['alt_texts']['pod'] = trim($match[1]);
+            $parsed['alt_texts']['pod'] = $this->clean_extracted_text(trim($match[1]));
         }
     }
     
@@ -164,16 +236,18 @@ class PBR_HTML_Parser {
      */
     private function extract_short_description($content, &$parsed) {
         if (!empty($parsed['short_description'])) {
+            // Limit to max length if already set from JSON
+            $parsed['short_description'] = $this->truncate_description($parsed['short_description']);
             return;
         }
         
         // Look for short description section (supports multiple prompt formats)
         if (preg_match('/###\s*۲\s*[\.|\)]\s*توضیح کوتاه محصول\s*\n+(.+?)(?=\n{2,}###|\n{2,}##|\n{2,}```|\n{2,}<div|$)/us', $content, $match)) {
-            $parsed['short_description'] = trim($match[1]);
+            $parsed['short_description'] = $this->clean_extracted_text(trim($match[1]));
         } elseif (preg_match('/##\s*توضیح کوتاه محصول\s*\n+(.+?)(?=\n{2,}##|\n{2,}```|\n{2,}<div|$)/us', $content, $match)) {
-            $parsed['short_description'] = trim($match[1]);
+            $parsed['short_description'] = $this->clean_extracted_text(trim($match[1]));
         } elseif (preg_match('/توضیح کوتاه محصول\s*\n+(.+?)(?=\n{2,}###|\n{2,}##|\n{2,}```|\n{2,}<div|$)/us', $content, $match)) {
-            $parsed['short_description'] = trim($match[1]);
+            $parsed['short_description'] = $this->clean_extracted_text(trim($match[1]));
         }
         
         // Clean up the short description
@@ -184,6 +258,9 @@ class PBR_HTML_Parser {
             // Remove extra whitespace
             $parsed['short_description'] = preg_replace('/\s+/', ' ', $parsed['short_description']);
             $parsed['short_description'] = trim($parsed['short_description']);
+            
+            // Limit to max length using helper method
+            $parsed['short_description'] = $this->truncate_description($parsed['short_description']);
         }
     }
     
@@ -193,27 +270,27 @@ class PBR_HTML_Parser {
     private function extract_html_content($content, &$parsed) {
         // Method 1: Find the main HTML div block with Tahoma font
         if (preg_match('/<div style="font-family:\s*Tahoma.*?<\/div>\s*$/s', $content, $match)) {
-            $parsed['html_content'] = trim($match[0]);
+            $parsed['html_content'] = $this->clean_html_content(trim($match[0]));
         }
         
         // Method 2: Find HTML within code block
         if (empty($parsed['html_content'])) {
             if (preg_match('/```html\s*([\s\S]*?)\s*```/m', $content, $match)) {
-                $parsed['html_content'] = trim($match[1]);
+                $parsed['html_content'] = $this->clean_html_content(trim($match[1]));
             }
         }
         
         // Method 3: Find any div with RTL direction
         if (empty($parsed['html_content'])) {
             if (preg_match('/<div[^>]*direction:\s*rtl[^>]*>[\s\S]*<\/div>\s*$/s', $content, $match)) {
-                $parsed['html_content'] = trim($match[0]);
+                $parsed['html_content'] = $this->clean_html_content(trim($match[0]));
             }
         }
         
         // Method 4: Extract from ### ۳. کد HTML section
         if (empty($parsed['html_content'])) {
             if (preg_match('/### ۳\. کد HTML.*?\n\n(<div[\s\S]*<\/div>)/us', $content, $match)) {
-                $parsed['html_content'] = trim($match[1]);
+                $parsed['html_content'] = $this->clean_html_content(trim($match[1]));
             }
         }
         
@@ -314,6 +391,21 @@ class PBR_HTML_Parser {
         }
         
         return $html;
+    }
+    
+    /**
+     * Clean HTML content from artifacts
+     */
+    private function clean_html_content($html_content) {
+        // Remove code block markers if any leaked through
+        $html_content = preg_replace('/^```(?:html)?\s*\n/m', '', $html_content);
+        $html_content = preg_replace('/\n```\s*$/m', '', $html_content);
+        
+        // Clean up malformed HTML - fix broken style attributes
+        $html_content = preg_replace('/;direction:\s*rtl;[^"]*?">/u', '; direction: rtl; text-align: right;">', $html_content);
+        $html_content = preg_replace('/(?<!")style="[^"]*$/m', '', $html_content);
+        
+        return trim($html_content);
     }
     
     /**
