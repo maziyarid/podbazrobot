@@ -6,6 +6,10 @@ if (!defined('ABSPATH')) exit;
 
 class PBR_Product_Handler {
     
+    // Constants for content validation
+    const MAX_SHORT_DESC_LENGTH = 500;
+    const MAX_SHORT_DESC_DISPLAY = 300;
+    
     private $parser;
 
     public function __construct() {
@@ -26,16 +30,15 @@ class PBR_Product_Handler {
     
     /**
      * Generate slug from title
+     * Uses WordPress sanitize_title for better i18n support
      */
     private function generate_slug($title) {
         if (empty($title)) return 'product-' . time();
         
-        $slug = strtolower($title);
-        $slug = preg_replace('/\s+/', '-', $slug);
-        $slug = preg_replace('/[^a-z0-9\-]/', '', $slug);
-        $slug = preg_replace('/-+/', '-', $slug);
+        // Use WordPress built-in function for better internationalization
+        $slug = sanitize_title($title);
         
-        return trim($slug, '-') ?: 'product-' . time();
+        return !empty($slug) ? $slug : 'product-' . time();
     }
 
     /**
@@ -51,9 +54,9 @@ class PBR_Product_Handler {
         
         // Check if short desc duplicates content
         if (!empty($parsed['short_description']) && !empty($parsed['html_content'])) {
-            if (strlen($parsed['short_description']) > 500 || 
+            if (strlen($parsed['short_description']) > self::MAX_SHORT_DESC_LENGTH || 
                 strpos($parsed['html_content'], $parsed['short_description']) === 0) {
-                $parsed['short_description'] = mb_substr(strip_tags($parsed['short_description']), 0, 300) . '...';
+                $parsed['short_description'] = mb_substr(strip_tags($parsed['short_description']), 0, self::MAX_SHORT_DESC_DISPLAY) . '...';
             }
         }
         

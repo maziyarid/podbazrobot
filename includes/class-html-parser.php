@@ -7,6 +7,9 @@ if (!defined('ABSPATH')) exit;
 
 class PBR_HTML_Parser {
     
+    // Constants for content limits
+    const SHORT_DESC_MAX_LENGTH = 300;
+    
     /**
      * Clean extracted text from markdown artifacts
      */
@@ -27,6 +30,21 @@ class PBR_HTML_Parser {
         // Return empty if just separators
         if ($text === '---' || $text === '```' || empty($text)) {
             return '';
+        }
+        
+        return $text;
+    }
+    
+    /**
+     * Truncate description to maximum length
+     */
+    private function truncate_description($text, $max_length = null) {
+        if ($max_length === null) {
+            $max_length = self::SHORT_DESC_MAX_LENGTH;
+        }
+        
+        if (strlen($text) > $max_length) {
+            return mb_substr($text, 0, $max_length - 3) . '...';
         }
         
         return $text;
@@ -218,10 +236,8 @@ class PBR_HTML_Parser {
      */
     private function extract_short_description($content, &$parsed) {
         if (!empty($parsed['short_description'])) {
-            // Limit to 300 chars if already set from JSON
-            if (strlen($parsed['short_description']) > 300) {
-                $parsed['short_description'] = mb_substr($parsed['short_description'], 0, 297) . '...';
-            }
+            // Limit to max length if already set from JSON
+            $parsed['short_description'] = $this->truncate_description($parsed['short_description']);
             return;
         }
         
@@ -243,10 +259,8 @@ class PBR_HTML_Parser {
             $parsed['short_description'] = preg_replace('/\s+/', ' ', $parsed['short_description']);
             $parsed['short_description'] = trim($parsed['short_description']);
             
-            // Limit to 300 chars
-            if (strlen($parsed['short_description']) > 300) {
-                $parsed['short_description'] = mb_substr($parsed['short_description'], 0, 297) . '...';
-            }
+            // Limit to max length using helper method
+            $parsed['short_description'] = $this->truncate_description($parsed['short_description']);
         }
     }
     
