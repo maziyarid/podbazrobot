@@ -11,6 +11,32 @@ class PBR_Product_Handler {
     public function __construct() {
         $this->parser = new PBR_HTML_Parser();
     }
+    
+    /**
+     * Extract title from HTML content as fallback
+     */
+    private function extract_title_fallback($html_content) {
+        // Try h1 tag
+        if (preg_match('/<h1[^>]*>(.+?)<\/h1>/is', $html_content, $match)) {
+            $title = strip_tags($match[1]);
+            return html_entity_decode($title, ENT_QUOTES, 'UTF-8');
+        }
+        return '';
+    }
+    
+    /**
+     * Generate slug from title
+     */
+    private function generate_slug($title) {
+        if (empty($title)) return 'product-' . time();
+        
+        $slug = strtolower($title);
+        $slug = preg_replace('/\s+/', '-', $slug);
+        $slug = preg_replace('/[^a-z0-9\-]/', '', $slug);
+        $slug = preg_replace('/-+/', '-', $slug);
+        
+        return trim($slug, '-') ?: 'product-' . time();
+    }
 
     /**
      * Create new WooCommerce product
@@ -22,6 +48,23 @@ class PBR_Product_Handler {
         
         // Parse content
         $parsed = $this->parser->parse($raw_content);
+        
+        // Check if short desc duplicates content
+        if (!empty($parsed['short_description']) && !empty($parsed['html_content'])) {
+            if (strlen($parsed['short_description']) > 500 || 
+                strpos($parsed['html_content'], $parsed['short_description']) === 0) {
+                $parsed['short_description'] = mb_substr(strip_tags($parsed['short_description']), 0, 300) . '...';
+            }
+        }
+        
+        // Clean HTML content before saving
+        if (!empty($parsed['html_content'])) {
+            // Remove section markers
+            $parsed['html_content'] = preg_replace('/^##?\s*بخش\s*[۱۲۳۴]+[:\s].*?\n+/u', '', $parsed['html_content']);
+            
+            // Remove separators
+            $parsed['html_content'] = preg_replace('/^\s*-{3,}\s*$/m', '', $parsed['html_content']);
+        }
         
         // Log parsed data for debugging
         if (get_option('pbr_enable_logging') === 'yes') {
@@ -44,10 +87,8 @@ class PBR_Product_Handler {
         
         // Get title - be more flexible
         if (empty($parsed['h1_title'])) {
-            // Try to extract from HTML
-            if (preg_match('/<h1[^>]*>([^<]+)/i', $parsed['html_content'], $h1_match)) {
-                $parsed['h1_title'] = strip_tags($h1_match[1]);
-            }
+            // Try to extract from HTML using fallback
+            $parsed['h1_title'] = $this->extract_title_fallback($parsed['html_content']);
         }
         
         // Still no title? Use a default with timestamp
@@ -63,7 +104,7 @@ class PBR_Product_Handler {
         
         // Generate slug if empty
         if (empty($parsed['slug'])) {
-            $parsed['slug'] = sanitize_title($parsed['h1_title']);
+            $parsed['slug'] = $this->generate_slug($parsed['h1_title']);
         }
         $product->set_slug($parsed['slug']);
         
