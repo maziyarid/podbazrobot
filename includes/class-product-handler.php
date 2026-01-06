@@ -54,9 +54,9 @@ class PBR_Product_Handler {
         
         // Check if short desc duplicates content
         if (!empty($parsed['short_description']) && !empty($parsed['html_content'])) {
-            if (strlen($parsed['short_description']) > self::MAX_SHORT_DESC_LENGTH || 
+            if (mb_strlen($parsed['short_description'], 'UTF-8') > self::MAX_SHORT_DESC_LENGTH || 
                 strpos($parsed['html_content'], $parsed['short_description']) === 0) {
-                $parsed['short_description'] = mb_substr(strip_tags($parsed['short_description']), 0, self::MAX_SHORT_DESC_DISPLAY) . '...';
+                $parsed['short_description'] = mb_substr(strip_tags($parsed['short_description']), 0, self::MAX_SHORT_DESC_DISPLAY, 'UTF-8') . '...';
             }
         }
         

@@ -43,8 +43,8 @@ class PBR_HTML_Parser {
             $max_length = self::SHORT_DESC_MAX_LENGTH;
         }
         
-        if (strlen($text) > $max_length) {
-            return mb_substr($text, 0, $max_length - 3) . '...';
+        if (mb_strlen($text, 'UTF-8') > $max_length) {
+            return mb_substr($text, 0, $max_length - 3, 'UTF-8') . '...';
         }
         
         return $text;
